@@ -34,7 +34,8 @@ using System.Windows.Forms;
 namespace OpenXmlPowerTools
 {
     public class HtmlToWmlConverterSettings
-    {
+    {        
+        public delegate Bitmap ImageLoaderDelegate(string imagePath, HtmlToWmlConverterSettings settings, out byte[] imageBytes);
         public string MajorLatinFont;
         public string MinorLatinFont;
         public double DefaultFontSize;
@@ -43,6 +44,7 @@ namespace OpenXmlPowerTools
         public XElement SectPr;
         public string DefaultBlockContentMargin;
         public string BaseUriForImages;
+        public ImageLoaderDelegate ImageLoader;
 
         public Twip PageWidthTwips { get { return (long)SectPr.Elements(W.pgSz).Attributes(W._w).FirstOrDefault(); } }
         public Twip PageMarginLeftTwips { get { return (long)SectPr.Elements(W.pgMar).Attributes(W.left).FirstOrDefault(); } }
@@ -336,6 +338,7 @@ AAAAAAAAAAAAAAAANi8AAGRvY1Byb3BzL2FwcC54bWxQSwUGAAAAAAwADAAJAwAA3DEAAAAA";
         public static HtmlToWmlConverterSettings GetDefaultSettings(WmlDocument wmlDocument)
         {
             HtmlToWmlConverterSettings settings = new HtmlToWmlConverterSettings();
+            settings.ImageLoader = DefaultImageLoader;
             using (MemoryStream ms = new MemoryStream())
             {
                 ms.Write(wmlDocument.DocumentByteArray, 0, wmlDocument.DocumentByteArray.Length);
@@ -427,6 +430,33 @@ AAAAAAAAAAAAAAAANi8AAGRvY1Byb3BzL2FwcC54bWxQSwUGAAAAAAwADAAJAwAA3DEAAAAA";
                 .Select(l => l + Environment.NewLine )
                 .StringConcatenate();
             return cleanCss;
+        }
+
+
+        public static Bitmap DefaultImageLoader(string imagePath, HtmlToWmlConverterSettings settings, out byte[] imageBytes)
+        {
+            imageBytes = null;
+            try
+            {
+                using (var memoryStream = new MemoryStream())
+                {
+                    using (Stream input = File.OpenRead(settings.BaseUriForImages + "/" + imagePath))
+                    {
+                        input.CopyTo(memoryStream);
+                    }
+                    memoryStream.Position = 0;
+                    imageBytes = memoryStream.ToArray();
+                    return new Bitmap(memoryStream);
+                }
+            }
+            catch (ArgumentException)
+            {
+                return null;
+            }
+            catch (NotSupportedException)
+            {
+                return null;
+            }
         }
     }
 

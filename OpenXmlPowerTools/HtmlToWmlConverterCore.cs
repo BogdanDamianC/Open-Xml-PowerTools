@@ -2355,10 +2355,13 @@ namespace OpenXmlPowerTools.HtmlToWml
         private static XElement TransformImageToWml(XElement element, HtmlToWmlConverterSettings settings, WordprocessingDocument wDoc)
         {
             string srcAttribute = (string)element.Attribute(XhtmlNoNamespace.src);
+            if (string.IsNullOrWhiteSpace(srcAttribute))
+                return null;
             byte[] ba = null;
             Bitmap bmp = null;
 
-            if (srcAttribute.StartsWith("data:"))
+
+            if (srcAttribute != null && srcAttribute.StartsWith("data:"))
             {
                 var semiIndex = srcAttribute.IndexOf(';');
                 var commaIndex = srcAttribute.IndexOf(',', semiIndex);
@@ -2371,21 +2374,11 @@ namespace OpenXmlPowerTools.HtmlToWml
             }
             else
             {
-                try
-                {
-                    bmp = new Bitmap(settings.BaseUriForImages + "/" + srcAttribute);
-                }
-                catch (ArgumentException)
-                {
+                if (settings.ImageLoader == null)
                     return null;
-                }
-                catch (NotSupportedException)
-                {
-                    return null;
-                }
-                MemoryStream ms = new MemoryStream();
-                bmp.Save(ms, bmp.RawFormat);
-                ba = ms.ToArray();
+
+                Stream imageStream = null;
+                bmp = settings.ImageLoader(srcAttribute, settings, out ba);
             }
 
             MainDocumentPart mdp = wDoc.MainDocumentPart;
@@ -2679,10 +2672,14 @@ namespace OpenXmlPowerTools.HtmlToWml
 
         private static XElement GetDocPr(XElement element, int pictureId, string pictureDescription)
         {
+            string src = (string)element.Attribute(NoNamespace.src);
+            if (string.IsNullOrWhiteSpace(src))
+                src = "no-image-data";
+
             return new XElement(WP.docPr,
-                new XAttribute(NoNamespace.id, pictureId),
-                new XAttribute(NoNamespace.name, pictureDescription),
-                new XAttribute(NoNamespace.descr, (string)element.Attribute(NoNamespace.src)));
+                 new XAttribute(NoNamespace.id, pictureId),
+                 new XAttribute(NoNamespace.name, pictureDescription),
+                 new XAttribute(NoNamespace.descr, src));
         }
 
         private static XElement GetCNvGraphicFramePr()
@@ -3276,7 +3273,7 @@ namespace OpenXmlPowerTools.HtmlToWml
         private static XElement GetCellWidth(XElement element)
         {
             CssExpression width = element.GetProp("width");
-            if (width.IsAuto)
+            if (width == null || width.IsAuto)
             {
                 return new XElement(W.tcW,
                     new XAttribute(W._w, "0"),
@@ -3451,7 +3448,7 @@ namespace OpenXmlPowerTools.HtmlToWml
                         XElement cell = tableArray[r][c];
                         CssExpression width = cell.GetProp("width");
                         XAttribute colSpan = cell.Attribute(XhtmlNoNamespace.colspan);
-                        if (colSpan == null && columnWidth.ToString() == "auto" && width.ToString() != "auto")
+                        if (colSpan == null && columnWidth.ToString() == "auto" && width != null && width.ToString() != "auto")
                         {
                             columnWidth = width;
                             break;
