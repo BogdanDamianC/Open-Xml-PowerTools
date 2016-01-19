@@ -1191,7 +1191,7 @@ namespace OpenXmlPowerTools.HtmlToWml
         {
             int propertySequence = 1;
 
-            CssParser defaultCssParser = new CssParser();
+            CssParser defaultCssParser = new CssParser(settings.CssErrorHandler);
             defaultCssDoc = defaultCssParser.ParseText(defaultCss);
             ApplyCssDocument(
                 defaultCssDoc,
@@ -1212,7 +1212,7 @@ namespace OpenXmlPowerTools.HtmlToWml
             //DumpCss(userAgentCssDoc);
             //Environment.Exit(0);
 
-            CssParser userCssParser = new CssParser();
+            CssParser userCssParser = new CssParser(settings.CssErrorHandler);
             userCssDoc = userCssParser.ParseText(userCss);
             ApplyCssDocument(
                 userCssDoc,
@@ -1224,7 +1224,7 @@ namespace OpenXmlPowerTools.HtmlToWml
             //DumpCss(userCssDoc);
             //Environment.Exit(0);
 
-            CssParser authorCssParser = new CssParser();
+            CssParser authorCssParser = new CssParser(settings.CssErrorHandler);
             authorCssDoc = authorCssParser.ParseText(authorCss);
             ApplyCssDocument(
                 authorCssDoc,
@@ -1239,7 +1239,7 @@ namespace OpenXmlPowerTools.HtmlToWml
 
             // If processing style element, do it here.
 
-            ApplyStyleAttributes(newXHtml, ref propertySequence);
+            ApplyStyleAttributes(newXHtml, settings, ref propertySequence);
 
             ExpandShorthandProperties(newXHtml, settings);
 
@@ -1839,7 +1839,7 @@ namespace OpenXmlPowerTools.HtmlToWml
             }
         }
 
-        private static void ApplyStyleAttributes(XElement xHtml, ref int propertySequence)
+        private static void ApplyStyleAttributes(XElement xHtml, HtmlToWmlConverterSettings settings, ref int propertySequence)
         {
             foreach (var element in xHtml.DescendantsAndSelf())
             {
@@ -1849,7 +1849,7 @@ namespace OpenXmlPowerTools.HtmlToWml
                     string style = (string)styleAtt;
                     string cssString = element.Name + "{" + style + "}";
                     cssString = cssString.Replace('\"', '\'');
-                    CssParser cssParser = new CssParser();
+                    CssParser cssParser = new CssParser(settings.CssErrorHandler);
                     CssDocument cssDoc = cssParser.ParseText(cssString);
                     ApplyCssToElement(
                         cssDoc,

@@ -1784,8 +1784,13 @@ namespace OpenXmlPowerTools.HtmlToWml.CSS
 
     public class CssParser
     {
-        private List<string> m_errors = new List<string>();
+        public IErrorHandler ErrorHandler { get; private set; }
         private CssDocument m_doc;
+
+        public CssParser(IErrorHandler errorHandler)
+        {
+            this.ErrorHandler = errorHandler;
+        }
 
         public CssDocument ParseText(string content)
         {
@@ -1807,7 +1812,7 @@ namespace OpenXmlPowerTools.HtmlToWml.CSS
         private CssDocument ParseStream(Stream stream)
         {
             Scanner scanner = new Scanner(stream);
-            Parser parser = new Parser(scanner);
+            Parser parser = new Parser(scanner, ErrorHandler);
             parser.Parse();
             m_doc = parser.CssDoc;
             return m_doc;
@@ -1816,11 +1821,6 @@ namespace OpenXmlPowerTools.HtmlToWml.CSS
         public CssDocument CSSDocument
         {
             get { return m_doc; }
-        }
-
-        public List<string> Errors
-        {
-            get { return m_errors; }
         }
     }
 
@@ -2032,7 +2032,7 @@ namespace OpenXmlPowerTools.HtmlToWml.CSS
         const int minErrDist = 2;
 
         public Scanner m_scanner;
-        public Errors m_errors;
+        public IErrorHandler ErrorHandler { get; private set; }
 
         public CssToken m_lastRecognizedToken;
         public CssToken m_lookaheadToken;
@@ -2087,23 +2087,23 @@ namespace OpenXmlPowerTools.HtmlToWml.CSS
             return false;
         }
 
-        public Parser(Scanner scanner)
+        public Parser(Scanner scanner, IErrorHandler errorHandler)
         {
             this.m_scanner = scanner;
-            m_errors = new Errors();
+            this.ErrorHandler = errorHandler;
         }
 
         void SyntaxErr(int n)
         {
             if (errDist >= minErrDist) 
-                m_errors.SyntaxError(m_lookaheadToken.m_tokenLine, m_lookaheadToken.m_tokenColumn, n);
+                ErrorHandler.SyntaxError(m_lookaheadToken.m_tokenLine, m_lookaheadToken.m_tokenColumn, n);
             errDist = 0;
         }
 
         public void SemanticErr(string msg)
         {
             if (errDist >= minErrDist)
-                m_errors.SemanticError(m_lastRecognizedToken.m_tokenLine, m_lastRecognizedToken.m_tokenColumn, msg);
+                ErrorHandler.SemanticError(m_lastRecognizedToken.m_tokenLine, m_lastRecognizedToken.m_tokenColumn, msg);
             errDist = 0;
         }
 
@@ -3299,7 +3299,7 @@ namespace OpenXmlPowerTools.HtmlToWml.CSS
                                 }
                                 catch
                                 {
-                                    m_errors.SemanticError(m_lastRecognizedToken.m_tokenLine, m_lastRecognizedToken.m_tokenColumn, string.Format("Unrecognized unit '{0}'", ident));
+                                    ErrorHandler.SemanticError(m_lastRecognizedToken.m_tokenLine, m_lastRecognizedToken.m_tokenColumn, string.Format("Unrecognized unit '{0}'", ident));
                                 }
 
                             }
@@ -3375,7 +3375,16 @@ namespace OpenXmlPowerTools.HtmlToWml.CSS
     }
 
 
-    public class Errors
+    public interface IErrorHandler
+    {
+        void SyntaxError(int line, int col, int n);
+        void SemanticError(int line, int col, string s);
+        void SemanticError(string s);
+        void Warning(int line, int col, string s);
+        void Warning(string s);
+    }
+
+    public class Errors : IErrorHandler
     {
         public int numberOfErrorsDetected = 0;
         public string errMsgFormat = "CssParser error: line {0} col {1}: {2}";

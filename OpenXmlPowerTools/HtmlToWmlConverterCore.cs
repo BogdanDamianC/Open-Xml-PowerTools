@@ -2376,10 +2376,10 @@ namespace OpenXmlPowerTools.HtmlToWml
             {
                 if (settings.ImageLoader == null)
                     return null;
-
-                Stream imageStream = null;
                 bmp = settings.ImageLoader(srcAttribute, settings, out ba);
             }
+            if (bmp == null)
+                return null;
 
             MainDocumentPart mdp = wDoc.MainDocumentPart;
             string rId = "R" + Guid.NewGuid().ToString().Replace("-", "");

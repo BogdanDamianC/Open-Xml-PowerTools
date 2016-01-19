@@ -45,6 +45,7 @@ namespace OpenXmlPowerTools
         public string DefaultBlockContentMargin;
         public string BaseUriForImages;
         public ImageLoaderDelegate ImageLoader;
+        public IErrorHandler CssErrorHandler;
 
         public Twip PageWidthTwips { get { return (long)SectPr.Elements(W.pgSz).Attributes(W._w).FirstOrDefault(); } }
         public Twip PageMarginLeftTwips { get { return (long)SectPr.Elements(W.pgMar).Attributes(W.left).FirstOrDefault(); } }
@@ -321,7 +322,8 @@ AAAAAAAAAAAAAAAANi8AAGRvY1Byb3BzL2FwcC54bWxQSwUGAAAAAAwADAAJAwAA3DEAAAAA";
 
         public static WmlDocument EmptyDocument
         {
-            get {
+            get
+            {
                 if (s_EmptyDocument == null)
                 {
                     s_EmptyDocument = new WmlDocument("EmptyDocument.docx", Convert.FromBase64String(s_Blank_wml_base64));
@@ -339,6 +341,7 @@ AAAAAAAAAAAAAAAANi8AAGRvY1Byb3BzL2FwcC54bWxQSwUGAAAAAAwADAAJAwAA3DEAAAAA";
         {
             HtmlToWmlConverterSettings settings = new HtmlToWmlConverterSettings();
             settings.ImageLoader = DefaultImageLoader;
+            settings.CssErrorHandler = new Errors();
             using (MemoryStream ms = new MemoryStream())
             {
                 ms.Write(wmlDocument.DocumentByteArray, 0, wmlDocument.DocumentByteArray.Length);
@@ -427,7 +430,7 @@ AAAAAAAAAAAAAAAANi8AAGRvY1Byb3BzL2FwcC54bWxQSwUGAAAAAAwADAAJAwAA3DEAAAAA";
                         return false;
                     return true;
                 })
-                .Select(l => l + Environment.NewLine )
+                .Select(l => l + Environment.NewLine)
                 .StringConcatenate();
             return cleanCss;
         }
@@ -449,11 +452,7 @@ AAAAAAAAAAAAAAAANi8AAGRvY1Byb3BzL2FwcC54bWxQSwUGAAAAAAwADAAJAwAA3DEAAAAA";
                     return new Bitmap(memoryStream);
                 }
             }
-            catch (ArgumentException)
-            {
-                return null;
-            }
-            catch (NotSupportedException)
+            catch
             {
                 return null;
             }
