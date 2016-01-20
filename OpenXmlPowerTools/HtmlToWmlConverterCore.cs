@@ -2651,12 +2651,12 @@ namespace OpenXmlPowerTools.HtmlToWml
             Emu cx = (long)((double)(s.Width / hres) * (double)Emu.s_EmusPerInch);
             Emu cy = (long)((double)(s.Height / vres) * (double)Emu.s_EmusPerInch);
 
-            CssExpression width = img.GetProp("width");
+            CssExpression width = GetWidth(img);
             CssExpression height = img.GetProp("height");
             if (width.IsNotAuto && height.IsAuto)
             {
                 Emu widthInEmus = (Emu)width;
-                double percentChange = widthInEmus / cx;
+                double percentChange = (double)widthInEmus / (double)cx;
                 cx = widthInEmus;
                 cy = (long)(cy * percentChange);
                 return new SizeEmu(cx, cy);
@@ -2664,7 +2664,7 @@ namespace OpenXmlPowerTools.HtmlToWml
             if (width.IsAuto && height.IsNotAuto)
             {
                 Emu heightInEmus = (Emu)height;
-                double percentChange = (float)heightInEmus / (float)cy;
+                double percentChange = (double)heightInEmus / (double)cy;
                 cy = heightInEmus;
                 cx = (long)(cx * percentChange);
                 return new SizeEmu(cx, cy);
