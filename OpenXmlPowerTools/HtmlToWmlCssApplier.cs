@@ -984,7 +984,8 @@ namespace OpenXmlPowerTools.HtmlToWml
                 {
                     var display = GetComputedPropertyValue(null, e, "display", settings);
                     var dv = display.ToString();
-                    if (dv == "inline" || dv == "table-row" || dv == "table-row-group")
+                    if ((dv == "inline" && e.Name != XhtmlNoNamespace.img) 
+                        || dv == "table-row" || dv == "table-row-group")
                         return false;
                     return true;
                 },
