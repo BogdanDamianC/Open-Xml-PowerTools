@@ -2389,9 +2389,7 @@ namespace OpenXmlPowerTools.HtmlToWml
                 return null;
             byte[] imageBytes = null;
             Bitmap bmp = null;
-
-
-            if (srcAttribute != null && srcAttribute.StartsWith("data:"))
+            if (srcAttribute.StartsWith("data:"))
             {
                 var semiIndex = srcAttribute.IndexOf(';');
                 var commaIndex = srcAttribute.IndexOf(',', semiIndex);
