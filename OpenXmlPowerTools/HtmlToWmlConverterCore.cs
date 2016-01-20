@@ -2653,7 +2653,7 @@ namespace OpenXmlPowerTools.HtmlToWml
 
             CssExpression width = img.GetProp("width");
             CssExpression maxwidth = img.GetProp("max-width");
-            if(maxwidth != null && maxwidth.IsNotAuto)
+            if(maxwidth != null && maxwidth.IsNotAuto && maxwidth != "none")
             {
                 if (width.IsNotAuto && (long)(Twip)maxwidth < (long)(Twip)width)
                     width = maxwidth;
