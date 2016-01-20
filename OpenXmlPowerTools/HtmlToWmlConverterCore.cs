@@ -938,6 +938,12 @@ namespace OpenXmlPowerTools.HtmlToWml
                             TransformImageToWml(element, settings, wDoc));
                         return para;
                     }
+                    else if (element.Parent.Descendants().Any(d=> d.Name == XhtmlNoNamespace.table))
+                    {
+                        return new XElement(W.p,
+                            GetParagraphPropertiesForImage(),
+                            TransformImageToWml(element, settings, wDoc));
+                    }
                     else
                     {
                         XElement content = TransformImageToWml(element, settings, wDoc);
@@ -988,11 +994,12 @@ namespace OpenXmlPowerTools.HtmlToWml
                     if (run != null)
                     {
                         Dictionary<string, CssExpression> computedProperties = element.Annotation<Dictionary<string, CssExpression>>();
-                        if (computedProperties != null && computedProperties.ContainsKey("width"))
+                        CssExpression widthCSSProperty = null;
+                        if (computedProperties != null && computedProperties.TryGetValue("width", out widthCSSProperty))
                         {
-                            string width = computedProperties["width"];
-                            if (width != "auto")
-                                run.Add(new XAttribute(PtOpenXml.HtmlToWmlCssWidth, width));
+                            computedProperties["width"] = GetWidth(element, widthCSSProperty);
+                            if (widthCSSProperty != null && !widthCSSProperty.IsAuto)
+                                run.Add(new XAttribute(PtOpenXml.HtmlToWmlCssWidth, (string)widthCSSProperty));
                             var rFontsLocal = run.Element(W.rFonts);
                             XElement rFontsGlobal = null;
                             var styleDefPart = wDoc.MainDocumentPart.StyleDefinitionsPart;
@@ -2352,12 +2359,35 @@ namespace OpenXmlPowerTools.HtmlToWml
             }
         }
 
+        private static string AddImageToDocumentParts(WordprocessingDocument wDoc, Bitmap bmp, byte[] imageBytes)
+        {
+            ImagePartType ipt = ImagePartType.Png;
+            if (bmp.RawFormat.Equals(System.Drawing.Imaging.ImageFormat.Jpeg))
+                ipt = ImagePartType.Jpeg;
+            else if (bmp.RawFormat.Equals(System.Drawing.Imaging.ImageFormat.Emf))
+                ipt = ImagePartType.Emf;
+            else if (bmp.RawFormat.Equals(System.Drawing.Imaging.ImageFormat.Gif))
+                ipt = ImagePartType.Gif;
+            else if (bmp.RawFormat.Equals(System.Drawing.Imaging.ImageFormat.Bmp))
+                ipt = ImagePartType.Bmp;
+            else if (bmp.RawFormat.Equals(System.Drawing.Imaging.ImageFormat.Icon))
+                ipt = ImagePartType.Icon;
+            else if (bmp.RawFormat.Equals(System.Drawing.Imaging.ImageFormat.Tiff))
+                ipt = ImagePartType.Tiff;
+
+            string rId = "R" + Guid.NewGuid().ToString().Replace("-", "");
+            ImagePart newPart = wDoc.MainDocumentPart.AddImagePart(ipt, rId);
+            using (Stream s = newPart.GetStream(FileMode.Create, FileAccess.ReadWrite))
+                s.Write(imageBytes, 0, imageBytes.GetUpperBound(0) + 1);
+            return rId;
+        }
+
         private static XElement TransformImageToWml(XElement element, HtmlToWmlConverterSettings settings, WordprocessingDocument wDoc)
         {
             string srcAttribute = (string)element.Attribute(XhtmlNoNamespace.src);
             if (string.IsNullOrWhiteSpace(srcAttribute))
                 return null;
-            byte[] ba = null;
+            byte[] imageBytes = null;
             Bitmap bmp = null;
 
 
@@ -2366,8 +2396,8 @@ namespace OpenXmlPowerTools.HtmlToWml
                 var semiIndex = srcAttribute.IndexOf(';');
                 var commaIndex = srcAttribute.IndexOf(',', semiIndex);
                 var base64 = srcAttribute.Substring(commaIndex + 1);
-                ba = Convert.FromBase64String(base64);
-                using (MemoryStream ms = new MemoryStream(ba))
+                imageBytes = Convert.FromBase64String(base64);
+                using (MemoryStream ms = new MemoryStream(imageBytes))
                 {
                     bmp = new Bitmap(ms);
                 }
@@ -2376,17 +2406,12 @@ namespace OpenXmlPowerTools.HtmlToWml
             {
                 if (settings.ImageLoader == null)
                     return null;
-                bmp = settings.ImageLoader(srcAttribute, settings, out ba);
+                bmp = settings.ImageLoader(srcAttribute, settings, out imageBytes);
             }
             if (bmp == null)
                 return null;
 
-            MainDocumentPart mdp = wDoc.MainDocumentPart;
-            string rId = "R" + Guid.NewGuid().ToString().Replace("-", "");
-            ImagePartType ipt = ImagePartType.Png;
-            ImagePart newPart = mdp.AddImagePart(ipt, rId);
-            using (Stream s = newPart.GetStream(FileMode.Create, FileAccess.ReadWrite))
-                s.Write(ba, 0, ba.GetUpperBound(0) + 1);
+            string imageResourceId = AddImageToDocumentParts(wDoc, bmp, imageBytes);
 
             PictureId pid = wDoc.Annotation<PictureId>();
             if (pid == null)
@@ -2408,7 +2433,7 @@ namespace OpenXmlPowerTools.HtmlToWml
                 XElement run = new XElement(W.r,
                     GetRunPropertiesForImage(),
                     new XElement(W.drawing,
-                        GetImageAsInline(element, settings, wDoc, bmp, rId, pictureId, pictureDescription)));
+                        GetImageAsInline(element, settings, wDoc, bmp, imageResourceId, pictureId, pictureDescription)));
                 return run;
             }
             if (floatValue == "left" || floatValue == "right")
@@ -2416,7 +2441,7 @@ namespace OpenXmlPowerTools.HtmlToWml
                 XElement run = new XElement(W.r,
                     GetRunPropertiesForImage(),
                     new XElement(W.drawing,
-                        GetImageAsAnchor(element, settings, wDoc, bmp, rId, floatValue, pictureId, pictureDescription)));
+                        GetImageAsAnchor(element, settings, wDoc, bmp, imageResourceId, floatValue, pictureId, pictureDescription)));
                 return run;
             }
             return null;
@@ -3255,34 +3280,43 @@ namespace OpenXmlPowerTools.HtmlToWml
             return null;
         }
 
-        private static XElement GetTableWidth(XElement element)
+        private static CssExpression GetWidth(XElement element)
         {
-            CssExpression width = element.GetProp("width");
-            if (width.IsAuto)
-            {
-                return new XElement(W.tblW,
+            return GetWidth(element, element.GetProp("width"));
+        }
+
+        private static CssExpression GetWidth(XElement element, CssExpression width)
+        {
+            if (width == null || width.IsAuto)
+                return width;
+
+            CssExpression maxwidth = element.GetProp("max-width");
+            if (maxwidth != null && !maxwidth.IsAuto && (long)(Twip)maxwidth < (long)(Twip)width)
+                return maxwidth;
+            else
+                return width;
+        }
+
+        private static XElement GetWidthElement(XName name, XElement element)
+        {
+            CssExpression width = GetWidth(element);
+            if (width == null || width.IsAuto)
+                return new XElement(name,
                     new XAttribute(W._w, "0"),
                     new XAttribute(W.type, "auto"));
-            }
-            XElement widthElement = new XElement(W.tblW,
+            else return new XElement(name,
                 new XAttribute(W._w, (long)(Twip)width),
                 new XAttribute(W.type, "dxa"));
-            return widthElement;
+        }
+
+        private static XElement GetTableWidth(XElement element)
+        {
+            return GetWidthElement(W.tblW, element);
         }
 
         private static XElement GetCellWidth(XElement element)
         {
-            CssExpression width = element.GetProp("width");
-            if (width == null || width.IsAuto)
-            {
-                return new XElement(W.tcW,
-                    new XAttribute(W._w, "0"),
-                    new XAttribute(W.type, "auto"));
-            }
-            XElement widthElement = new XElement(W.tcW,
-                new XAttribute(W._w, (long)(Twip)width),
-                new XAttribute(W.type, "dxa"));
-            return widthElement;
+            return GetWidthElement(W.tcW, element);
         }
 
         private static XElement GetBlockContentBorders(XElement element, XName borderXName, bool forParagraph)
