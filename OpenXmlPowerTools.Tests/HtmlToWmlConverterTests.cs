@@ -296,6 +296,7 @@ namespace OxPt
         [InlineData("T1840.html")]
         [InlineData("T1850.html")]
         [InlineData("T1851_P_max-width.html")]
+        [InlineData("T1852_P_max-width-percentages.html")]
 
         public void HW001(string name)
         {

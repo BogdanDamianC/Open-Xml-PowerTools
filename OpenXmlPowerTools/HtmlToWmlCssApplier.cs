@@ -1392,7 +1392,7 @@ namespace OpenXmlPowerTools.HtmlToWml
             CssExpression lengthForPercentage)
         {
             if (assignedValue.Terms.Count != 1)
-                throw new OpenXmlPowerToolsException("Should not have a unit with more than one term");
+                return HandleLengthComputeError(settings, "Should not have a unit with more than one term" + assignedValue.Terms.ToString());
 
             string value = assignedValue.Terms.First().Value;
             bool negative = assignedValue.Terms.First().Sign == '-';
@@ -1419,12 +1419,13 @@ namespace OpenXmlPowerTools.HtmlToWml
             if (unit == CssUnit.PT || unit == null)
                 return assignedValue;
 
-            if (unit == CssUnit.Percent && lengthForPercentage == null)
+            if (unit == CssUnit.Percent && (lengthForPercentage == null || lengthForPercentage.Terms.First().Value == "auto"))
                 return new CssExpression { Terms = new List<CssTerm> { new CssTerm { Value = "auto", Type = OpenXmlPowerTools.HtmlToWml.CSS.CssTermType.String } } };
 
             double decValue;
             if (!double.TryParse(value, NumberStyles.Float, CultureInfo.InvariantCulture, out decValue))
-                throw new OpenXmlPowerToolsException("value did not parse");
+                return HandleLengthComputeError(settings, "value did not parse" + value);
+
             if (negative)
                 decValue = -decValue;
 
@@ -1433,7 +1434,7 @@ namespace OpenXmlPowerTools.HtmlToWml
             {
                 double ptSize;
                 if (!double.TryParse(lengthForPercentage.Terms.First().Value, out ptSize))
-                    throw new OpenXmlPowerToolsException("did not return a double?");
+                    return HandleLengthComputeError(settings, "did not return a double?" + lengthForPercentage.Terms.First().Value);
                 newPtSize = ptSize * decValue / 100d;
             }
             else if (unit == CssUnit.EM || unit == CssUnit.EX)
@@ -1441,7 +1442,7 @@ namespace OpenXmlPowerTools.HtmlToWml
                 CssExpression fontSize = GetComputedPropertyValue(null, element, "font-size", settings);
                 double decFontSize;
                 if (!double.TryParse(fontSize.Terms.First().Value, out decFontSize))
-                    throw new OpenXmlPowerToolsException("Internal error");
+                    return HandleLengthComputeError(settings, "value did not parse" + fontSize.Terms.First().Value);
                 newPtSize = (unit == CssUnit.EM) ? decFontSize * decValue : decFontSize * decValue / 2;
             }
             else
@@ -1460,15 +1461,22 @@ namespace OpenXmlPowerTools.HtmlToWml
                     newPtSize = decValue * 0.75d;
             }
             if (newPtSize == null)
-                throw new OpenXmlPowerToolsException("Internal error: should not have reached this exception");
+                return HandleLengthComputeError(settings, "Internal error: should not have reached this exception");
             CssExpression newExpr = new CssExpression { Terms = new List<CssTerm> { new CssTerm { Value = newPtSize.ToString(), Type = OpenXmlPowerTools.HtmlToWml.CSS.CssTermType.Number, Unit = CssUnit.PT, } } };
             return newExpr;
+        }
+
+        private static CssExpression HandleLengthComputeError(HtmlToWmlConverterSettings settings, string error)
+        {
+            settings.CssErrorHandler.SemanticError(error);
+            return new CssExpression { Terms = new List<CssTerm> { new CssTerm { Value = "auto", Type = OpenXmlPowerTools.HtmlToWml.CSS.CssTermType.String } } };
         }
 
         private static CssExpression ComputeAbsoluteFontSize(XElement element, CssExpression assignedValue, HtmlToWmlConverterSettings settings)
         {
             if (assignedValue.Terms.Count != 1)
-                throw new OpenXmlPowerToolsException("Should not have a unit with more than one term, I think");
+                return HandleFontComputeError(settings, "Should not have a unit with more than one term, I think" + assignedValue.Terms.ToString());
+
             string value = assignedValue.Terms.First().Value;
             CssUnit? unit = assignedValue.Terms.First().Unit;
             if (unit == CssUnit.PT)
@@ -1482,7 +1490,8 @@ namespace OpenXmlPowerTools.HtmlToWml
                 CssExpression parentFontSize = GetComputedPropertyValue(null, element.Parent, "font-size", settings);
                 double ptSize;
                 if (!double.TryParse(parentFontSize.Terms.First().Value, out ptSize))
-                    throw new OpenXmlPowerToolsException("did not return a double?");
+                    return HandleFontComputeError(settings, "did not return a double? " + parentFontSize.Terms.First().Value);
+
                 double newPtSize2 = 0;
                 if (value == "larger")
                 {
@@ -1518,14 +1527,16 @@ namespace OpenXmlPowerTools.HtmlToWml
             }
             double decValue;
             if (!double.TryParse(value, out decValue))
-                throw new OpenXmlPowerToolsException("em value did not parse");
+                return HandleFontComputeError(settings, "em value did not parse " + value);
+
             double? newPtSize = null;
             if (unit == CssUnit.EM || unit == CssUnit.EX || unit == CssUnit.Percent)
             {
                 CssExpression parentFontSize = GetComputedPropertyValue(null, element.Parent, "font-size", settings);
                 double ptSize;
                 if (!double.TryParse(parentFontSize.Terms.First().Value, out ptSize))
-                    throw new OpenXmlPowerToolsException("did not return a double?");
+                    return HandleFontComputeError(settings, "did not return a double? " + parentFontSize.Terms.First().Value);
+
                 if (unit == CssUnit.EM)
                     newPtSize = ptSize * decValue;
                 if (unit == CssUnit.EX)
@@ -1547,9 +1558,15 @@ namespace OpenXmlPowerTools.HtmlToWml
                     newPtSize = decValue * 0.75d;
             }
             if (newPtSize == null)
-                throw new OpenXmlPowerToolsException("Internal error: should not have reached this exception");
+                return HandleFontComputeError(settings, "Internal error: should not have reached this exception");
             CssExpression newExpr = new CssExpression { Terms = new List<CssTerm> { new CssTerm { Value = newPtSize.ToString(), Type = OpenXmlPowerTools.HtmlToWml.CSS.CssTermType.Number, Unit = CssUnit.PT, } } };
             return newExpr;
+        }
+
+        private static CssExpression HandleFontComputeError(HtmlToWmlConverterSettings settings, string error)
+        {
+            settings.CssErrorHandler.SemanticError(error);
+            return new CssExpression { Terms = new List<CssTerm> { new CssTerm { Value = FontSizeMap["medium"].ToString(), Type = OpenXmlPowerTools.HtmlToWml.CSS.CssTermType.Number, Unit = CssUnit.PT, } } };
         }
 
         private static Dictionary<string, double> FontSizeMap = new Dictionary<string, double>()

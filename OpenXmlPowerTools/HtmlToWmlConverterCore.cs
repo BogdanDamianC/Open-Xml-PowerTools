@@ -997,7 +997,7 @@ namespace OpenXmlPowerTools.HtmlToWml
                         CssExpression widthCSSProperty = null;
                         if (computedProperties != null && computedProperties.TryGetValue("width", out widthCSSProperty))
                         {
-                            computedProperties["width"] = GetWidth(element, widthCSSProperty);
+                            computedProperties["width"] = widthCSSProperty = GetWidth(element, widthCSSProperty);
                             if (widthCSSProperty != null && !widthCSSProperty.IsAuto)
                                 run.Add(new XAttribute(PtOpenXml.HtmlToWmlCssWidth, (string)widthCSSProperty));
                             var rFontsLocal = run.Element(W.rFonts);
