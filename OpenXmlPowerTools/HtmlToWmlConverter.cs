@@ -34,8 +34,8 @@ using System.Windows.Forms;
 namespace OpenXmlPowerTools
 {
     public class HtmlToWmlConverterSettings
-    {        
-        public delegate Bitmap ImageLoaderDelegate(string imagePath, HtmlToWmlConverterSettings settings, out byte[] imageBytes);
+    {
+        public delegate IBitmapImageData ImageLoaderDelegate(string imagePath, HtmlToWmlConverterSettings settings);
         public string MajorLatinFont;
         public string MinorLatinFont;
         public double DefaultFontSize;
@@ -44,7 +44,7 @@ namespace OpenXmlPowerTools
         public XElement SectPr;
         public string DefaultBlockContentMargin;
         public string BaseUriForImages;
-        public ImageLoaderDelegate ImageLoader;
+        public ImageLoaderDelegate LoadImage;
         public IErrorHandler CssErrorHandler;
 
         public Twip PageWidthTwips { get { return (long)SectPr.Elements(W.pgSz).Attributes(W._w).FirstOrDefault(); } }
@@ -340,7 +340,7 @@ AAAAAAAAAAAAAAAANi8AAGRvY1Byb3BzL2FwcC54bWxQSwUGAAAAAAwADAAJAwAA3DEAAAAA";
         public static HtmlToWmlConverterSettings GetDefaultSettings(WmlDocument wmlDocument)
         {
             HtmlToWmlConverterSettings settings = new HtmlToWmlConverterSettings();
-            settings.ImageLoader = DefaultImageLoader;
+            settings.LoadImage = DefaultImageLoader;
             settings.CssErrorHandler = new Errors();
             using (MemoryStream ms = new MemoryStream())
             {
@@ -436,20 +436,13 @@ AAAAAAAAAAAAAAAANi8AAGRvY1Byb3BzL2FwcC54bWxQSwUGAAAAAAwADAAJAwAA3DEAAAAA";
         }
 
 
-        public static Bitmap DefaultImageLoader(string imagePath, HtmlToWmlConverterSettings settings, out byte[] imageBytes)
+        public static IBitmapImageData DefaultImageLoader(string imagePath, HtmlToWmlConverterSettings settings)
         {
-            imageBytes = null;
             try
             {
-                using (var memoryStream = new MemoryStream())
+                using (Stream input = File.OpenRead(settings.BaseUriForImages + "/" + imagePath))
                 {
-                    using (Stream input = File.OpenRead(settings.BaseUriForImages + "/" + imagePath))
-                    {
-                        input.CopyTo(memoryStream);
-                    }
-                    memoryStream.Position = 0;
-                    imageBytes = memoryStream.ToArray();
-                    return new Bitmap(memoryStream);
+                    return new BitmapImageData(input);
                 }
             }
             catch

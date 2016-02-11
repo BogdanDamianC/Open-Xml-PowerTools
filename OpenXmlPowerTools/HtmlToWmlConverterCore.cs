@@ -2359,26 +2359,12 @@ namespace OpenXmlPowerTools.HtmlToWml
             }
         }
 
-        private static string AddImageToDocumentParts(WordprocessingDocument wDoc, Bitmap bmp, byte[] imageBytes)
+        private static string AddImageToDocumentParts(WordprocessingDocument wDoc, IBitmapImageData image)
         {
-            ImagePartType ipt = ImagePartType.Png;
-            if (bmp.RawFormat.Equals(System.Drawing.Imaging.ImageFormat.Jpeg))
-                ipt = ImagePartType.Jpeg;
-            else if (bmp.RawFormat.Equals(System.Drawing.Imaging.ImageFormat.Emf))
-                ipt = ImagePartType.Emf;
-            else if (bmp.RawFormat.Equals(System.Drawing.Imaging.ImageFormat.Gif))
-                ipt = ImagePartType.Gif;
-            else if (bmp.RawFormat.Equals(System.Drawing.Imaging.ImageFormat.Bmp))
-                ipt = ImagePartType.Bmp;
-            else if (bmp.RawFormat.Equals(System.Drawing.Imaging.ImageFormat.Icon))
-                ipt = ImagePartType.Icon;
-            else if (bmp.RawFormat.Equals(System.Drawing.Imaging.ImageFormat.Tiff))
-                ipt = ImagePartType.Tiff;
-
             string rId = "R" + Guid.NewGuid().ToString().Replace("-", "");
-            ImagePart newPart = wDoc.MainDocumentPart.AddImagePart(ipt, rId);
+            ImagePart newPart = wDoc.MainDocumentPart.AddImagePart(image.ImageType, rId);
             using (Stream s = newPart.GetStream(FileMode.Create, FileAccess.ReadWrite))
-                s.Write(imageBytes, 0, imageBytes.GetUpperBound(0) + 1);
+                s.Write(image.ImageBytes, 0, image.ImageBytes.GetUpperBound(0) + 1);
             return rId;
         }
 
@@ -2388,28 +2374,25 @@ namespace OpenXmlPowerTools.HtmlToWml
             if (string.IsNullOrWhiteSpace(srcAttribute))
                 return null;
             byte[] imageBytes = null;
-            Bitmap bmp = null;
+            IBitmapImageData image = null;
             if (srcAttribute.StartsWith("data:"))
             {
                 var semiIndex = srcAttribute.IndexOf(';');
                 var commaIndex = srcAttribute.IndexOf(',', semiIndex);
                 var base64 = srcAttribute.Substring(commaIndex + 1);
                 imageBytes = Convert.FromBase64String(base64);
-                using (MemoryStream ms = new MemoryStream(imageBytes))
-                {
-                    bmp = new Bitmap(ms);
-                }
+                image = new BitmapImageData(imageBytes);
             }
             else
             {
-                if (settings.ImageLoader == null)
+                if (settings.LoadImage == null)
                     return null;
-                bmp = settings.ImageLoader(srcAttribute, settings, out imageBytes);
+                image = settings.LoadImage(srcAttribute, settings);
             }
-            if (bmp == null)
+            if (image == null)
                 return null;
 
-            string imageResourceId = AddImageToDocumentParts(wDoc, bmp, imageBytes);
+            string imageResourceId = AddImageToDocumentParts(wDoc, image);
 
             PictureId pid = wDoc.Annotation<PictureId>();
             if (pid == null)
@@ -2431,7 +2414,7 @@ namespace OpenXmlPowerTools.HtmlToWml
                 XElement run = new XElement(W.r,
                     GetRunPropertiesForImage(),
                     new XElement(W.drawing,
-                        GetImageAsInline(element, settings, wDoc, bmp, imageResourceId, pictureId, pictureDescription)));
+                        GetImageAsInline(element, settings, wDoc, image, imageResourceId, pictureId, pictureDescription)));
                 return run;
             }
             if (floatValue == "left" || floatValue == "right")
@@ -2439,13 +2422,13 @@ namespace OpenXmlPowerTools.HtmlToWml
                 XElement run = new XElement(W.r,
                     GetRunPropertiesForImage(),
                     new XElement(W.drawing,
-                        GetImageAsAnchor(element, settings, wDoc, bmp, imageResourceId, floatValue, pictureId, pictureDescription)));
+                        GetImageAsAnchor(element, settings, wDoc, image, imageResourceId, floatValue, pictureId, pictureDescription)));
                 return run;
             }
             return null;
         }
 
-        private static XElement GetImageAsInline(XElement element, HtmlToWmlConverterSettings settings, WordprocessingDocument wDoc, Bitmap bmp,
+        private static XElement GetImageAsInline(XElement element, HtmlToWmlConverterSettings settings, WordprocessingDocument wDoc, IBitmapImageData bmp,
             string rId, int pictureId, string pictureDescription)
         {
             XElement inline = new XElement(WP.inline, // 20.4.2.8
@@ -2462,7 +2445,7 @@ namespace OpenXmlPowerTools.HtmlToWml
             return inline;
         }
 
-        private static XElement GetImageAsAnchor(XElement element, HtmlToWmlConverterSettings settings, WordprocessingDocument wDoc, Bitmap bmp,
+        private static XElement GetImageAsAnchor(XElement element, HtmlToWmlConverterSettings settings, WordprocessingDocument wDoc, IBitmapImageData bmp,
             string rId, string floatValue, int pictureId, string pictureDescription)
         {
             Emu minDistFromEdge = (long)(0.125 * Emu.s_EmusPerInch);
@@ -2643,7 +2626,7 @@ namespace OpenXmlPowerTools.HtmlToWml
                 new XElement(W.noProof));
         }
 
-        private static SizeEmu GetImageSizeInEmus(XElement img, Bitmap bmp)
+        private static SizeEmu GetImageSizeInEmus(XElement img, IBitmapImageData bmp)
         {
             double hres = bmp.HorizontalResolution;
             double vres = bmp.VerticalResolution;
@@ -2685,7 +2668,7 @@ namespace OpenXmlPowerTools.HtmlToWml
             return new SizeEmu(cx, cy);
         }
 
-        private static XElement GetImageExtent(XElement img, Bitmap bmp)
+        private static XElement GetImageExtent(XElement img, IBitmapImageData bmp)
         {
             SizeEmu szEmu = GetImageSizeInEmus(img, bmp);
             return new XElement(WP.extent,
@@ -2722,7 +2705,7 @@ namespace OpenXmlPowerTools.HtmlToWml
                     new XAttribute(NoNamespace.noChangeAspect, 1)));
         }
 
-        private static XElement GetGraphicForImage(XElement element, string rId, Bitmap bmp, int pictureId, string pictureDescription)
+        private static XElement GetGraphicForImage(XElement element, string rId, IBitmapImageData bmp, int pictureId, string pictureDescription)
         {
             SizeEmu szEmu = GetImageSizeInEmus(element, bmp);
             XElement graphic = new XElement(A.graphic,
