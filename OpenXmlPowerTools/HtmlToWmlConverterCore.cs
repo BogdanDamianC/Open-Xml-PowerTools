@@ -888,7 +888,7 @@ namespace OpenXmlPowerTools.HtmlToWml
                 }
 
                 if (element.Name == XhtmlNoNamespace.em)
-                    return element.Nodes().Select(n => Transform(n, settings, wDoc, NextExpected.Run, preserveWhiteSpace));
+                    return element.Nodes().Select(n => Transform(n, settings, wDoc, nextExpected, preserveWhiteSpace));
 
                 HeadingInfo hi = HeadingTagMap.FirstOrDefault(htm => htm.Name == element.Name);
                 if (hi != null)
@@ -931,24 +931,9 @@ namespace OpenXmlPowerTools.HtmlToWml
 
                 if (element.Name == XhtmlNoNamespace.img)
                 {
-                    if (element.Parent.Name == XhtmlNoNamespace.body)
-                    {
-                        XElement para = new XElement(W.p,
-                            GetParagraphPropertiesForImage(),
-                            TransformImageToWml(element, settings, wDoc));
-                        return para;
-                    }
-                    else if (element.Parent.Descendants().Any(d=> d.Name == XhtmlNoNamespace.table))
-                    {
-                        return new XElement(W.p,
-                            GetParagraphPropertiesForImage(),
-                            TransformImageToWml(element, settings, wDoc));
-                    }
-                    else
-                    {
-                        XElement content = TransformImageToWml(element, settings, wDoc);
-                        return content;
-                    }
+                    return new XElement(W.p,
+                        GetParagraphPropertiesForImage(),
+                        TransformImageToWml(element, settings, wDoc));
                 }
 
                 if (element.Name == XhtmlNoNamespace.li)
@@ -2341,14 +2326,15 @@ namespace OpenXmlPowerTools.HtmlToWml
             else
             {
                 XElement element = node as XElement;
+                XText textNode = null;
                 if (element != null)
                 {
                     return element.Nodes().Select(n => Transform(n, settings, wDoc, nextExpected, preserveWhiteSpace));
                 }
-                else
+                else if ((textNode = node as XText) != null)
                 {
-                    string textNodeString = GetDisplayText((XText)node, preserveWhiteSpace);
-                    XElement rPr = GetRunProperties((XText)node, settings);
+                    string textNodeString = GetDisplayText(textNode, preserveWhiteSpace);
+                    XElement rPr = GetRunProperties(textNode, settings);
                     XElement r = new XElement(W.r,
                         rPr,
                         new XElement(W.t,
@@ -2356,6 +2342,8 @@ namespace OpenXmlPowerTools.HtmlToWml
                             textNodeString));
                     return r;
                 }
+                else
+                    return null;
             }
         }
 
@@ -3152,19 +3140,20 @@ namespace OpenXmlPowerTools.HtmlToWml
 
         private static XElement GetNumberingProperties(XElement paragraph, HtmlToWmlConverterSettings settings)
         {
+            if (paragraph.Name != XhtmlNoNamespace.li)
+                return null;
+
             // Numbering properties ******************************************************
-            NumberedItemAnnotation numberedItemAnnotation = null;
             XElement listElement = paragraph.Ancestors().FirstOrDefault(a => a.Name == XhtmlNoNamespace.ol || a.Name == XhtmlNoNamespace.ul);
-            if (listElement != null)
+            if (listElement == null)
             {
-                numberedItemAnnotation = listElement.Annotation<NumberedItemAnnotation>();
+                settings.CssErrorHandler.SemanticError(" no ul or ol parent found ");
+                return null;
             }
-            XElement numPr = null;
-            if (paragraph.Name == XhtmlNoNamespace.li)
-                numPr = new XElement(W.numPr,
+            var numberedItemAnnotation = listElement.Annotation<NumberedItemAnnotation>();
+            return new XElement(W.numPr,
                     new XElement(W.ilvl, new XAttribute(W.val, numberedItemAnnotation.ilvl)),
                     new XElement(W.numId, new XAttribute(W.val, numberedItemAnnotation.numId)));
-            return numPr;
         }
 
         private static XElement GetJustification(XElement blockLevelElement, HtmlToWmlConverterSettings settings)
