@@ -2096,14 +2096,14 @@ namespace OpenXmlPowerTools.HtmlToWml.CSS
         void SyntaxErr(int n)
         {
             if (errDist >= minErrDist) 
-                ErrorHandler.SyntaxError(m_lookaheadToken.m_tokenLine, m_lookaheadToken.m_tokenColumn, n);
+                ErrorHandler.CSSSyntaxError(m_lookaheadToken.m_tokenLine, m_lookaheadToken.m_tokenColumn, n);
             errDist = 0;
         }
 
         public void SemanticErr(string msg)
         {
             if (errDist >= minErrDist)
-                ErrorHandler.SemanticError(m_lastRecognizedToken.m_tokenLine, m_lastRecognizedToken.m_tokenColumn, msg);
+                ErrorHandler.CSSSemanticError(m_lastRecognizedToken.m_tokenLine, m_lastRecognizedToken.m_tokenColumn, msg);
             errDist = 0;
         }
 
@@ -3299,7 +3299,7 @@ namespace OpenXmlPowerTools.HtmlToWml.CSS
                                 }
                                 catch
                                 {
-                                    ErrorHandler.SemanticError(m_lastRecognizedToken.m_tokenLine, m_lastRecognizedToken.m_tokenColumn, string.Format("Unrecognized unit '{0}'", ident));
+                                    ErrorHandler.CSSSemanticError(m_lastRecognizedToken.m_tokenLine, m_lastRecognizedToken.m_tokenColumn, string.Format("Unrecognized unit '{0}'", ident));
                                 }
 
                             }
@@ -3377,11 +3377,12 @@ namespace OpenXmlPowerTools.HtmlToWml.CSS
 
     public interface IErrorHandler
     {
-        void SyntaxError(int line, int col, int n);
-        void SemanticError(int line, int col, string s);
-        void SemanticError(string s);
-        void Warning(int line, int col, string s);
-        void Warning(string s);
+        void CSSSyntaxError(int line, int col, int n);
+        void CSSSemanticError(int line, int col, string s);
+        void CSSSemanticError(string s);
+        void CSSWarning(int line, int col, string s);
+        void CSSWarning(string s);
+        void HTMLError(string s);
     }
 
     public class Errors : IErrorHandler
@@ -3459,30 +3460,35 @@ namespace OpenXmlPowerTools.HtmlToWml.CSS
             }
         }
 
-        public virtual void SyntaxError(int line, int col, int n)
+        public virtual void CSSSyntaxError(int line, int col, int n)
         {
             var errorString = string.Format(errMsgFormat, line, col, GetSyntaxErrorText(n));
             throw new OpenXmlPowerToolsException(errorString);
         }
 
-        public virtual void SemanticError(int line, int col, string s)
+        public virtual void CSSSemanticError(int line, int col, string s)
         {
             var errorString = string.Format(errMsgFormat, line, col, s);
             throw new OpenXmlPowerToolsException(errorString);
         }
 
-        public virtual void SemanticError(string s)
+        public virtual void CSSSemanticError(string s)
         {
             throw new OpenXmlPowerToolsException(s);
         }
 
-        public virtual void Warning(int line, int col, string s)
+        public virtual void CSSWarning(int line, int col, string s)
         {
             var errorString = string.Format(errMsgFormat, line, col, s);
             throw new OpenXmlPowerToolsException(errorString);
         }
 
-        public virtual void Warning(string s)
+        public virtual void CSSWarning(string s)
+        {
+            throw new OpenXmlPowerToolsException(s);
+        }
+
+        public void HTMLError(string s)
         {
             throw new OpenXmlPowerToolsException(s);
         }

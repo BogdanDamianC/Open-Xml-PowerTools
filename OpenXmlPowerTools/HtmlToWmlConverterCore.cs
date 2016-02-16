@@ -2356,27 +2356,38 @@ namespace OpenXmlPowerTools.HtmlToWml
             return rId;
         }
 
-        private static XElement TransformImageToWml(XElement element, HtmlToWmlConverterSettings settings, WordprocessingDocument wDoc)
+        private static IBitmapImageData LoadImageData(string srcAttribute, HtmlToWmlConverterSettings settings)
         {
-            string srcAttribute = (string)element.Attribute(XhtmlNoNamespace.src);
             if (string.IsNullOrWhiteSpace(srcAttribute))
                 return null;
-            byte[] imageBytes = null;
-            IBitmapImageData image = null;
             if (srcAttribute.StartsWith("data:"))
+                return LoadBase64EncodedImage(srcAttribute, settings);
+            else if (settings.LoadImage != null)
+                return settings.LoadImage(srcAttribute, settings);
+            else
+                return null;
+        }
+
+        private static IBitmapImageData LoadBase64EncodedImage(string srcAttribute, HtmlToWmlConverterSettings settings)
+        {
+            try
             {
                 var semiIndex = srcAttribute.IndexOf(';');
                 var commaIndex = srcAttribute.IndexOf(',', semiIndex);
-                var base64 = srcAttribute.Substring(commaIndex + 1);
-                imageBytes = Convert.FromBase64String(base64);
-                image = new BitmapImageData(imageBytes);
+                var base64ImageData = srcAttribute.Substring(commaIndex + 1);
+                var imageBytes = Convert.FromBase64String(base64ImageData);
+                return new BitmapImageData(imageBytes);
             }
-            else
+            catch (Exception ex)
             {
-                if (settings.LoadImage == null)
-                    return null;
-                image = settings.LoadImage(srcAttribute, settings);
+                settings.ErrorHandler.HTMLError("invalid Base64 image -> " + ex.Message);
+                return null;
             }
+        }
+
+        private static XElement TransformImageToWml(XElement element, HtmlToWmlConverterSettings settings, WordprocessingDocument wDoc)
+        {
+            IBitmapImageData image = LoadImageData((string)element.Attribute(XhtmlNoNamespace.src), settings);
             if (image == null)
                 return null;
 
@@ -3147,7 +3158,7 @@ namespace OpenXmlPowerTools.HtmlToWml
             XElement listElement = paragraph.Ancestors().FirstOrDefault(a => a.Name == XhtmlNoNamespace.ol || a.Name == XhtmlNoNamespace.ul);
             if (listElement == null)
             {
-                settings.CssErrorHandler.SemanticError(" no ul or ol parent found ");
+                settings.ErrorHandler.HTMLError(" no ul or ol parent found ");
                 return null;
             }
             var numberedItemAnnotation = listElement.Annotation<NumberedItemAnnotation>();

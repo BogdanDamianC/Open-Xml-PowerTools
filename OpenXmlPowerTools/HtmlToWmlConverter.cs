@@ -45,7 +45,7 @@ namespace OpenXmlPowerTools
         public string DefaultBlockContentMargin;
         public string BaseUriForImages;
         public ImageLoaderDelegate LoadImage;
-        public IErrorHandler CssErrorHandler;
+        public IErrorHandler ErrorHandler;
 
         public Twip PageWidthTwips { get { return (long)SectPr.Elements(W.pgSz).Attributes(W._w).FirstOrDefault(); } }
         public Twip PageMarginLeftTwips { get { return (long)SectPr.Elements(W.pgMar).Attributes(W.left).FirstOrDefault(); } }
@@ -341,7 +341,7 @@ AAAAAAAAAAAAAAAANi8AAGRvY1Byb3BzL2FwcC54bWxQSwUGAAAAAAwADAAJAwAA3DEAAAAA";
         {
             HtmlToWmlConverterSettings settings = new HtmlToWmlConverterSettings();
             settings.LoadImage = DefaultImageLoader;
-            settings.CssErrorHandler = new Errors();
+            settings.ErrorHandler = new Errors();
             using (MemoryStream ms = new MemoryStream())
             {
                 ms.Write(wmlDocument.DocumentByteArray, 0, wmlDocument.DocumentByteArray.Length);

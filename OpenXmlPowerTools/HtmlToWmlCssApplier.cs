@@ -1192,7 +1192,7 @@ namespace OpenXmlPowerTools.HtmlToWml
         {
             int propertySequence = 1;
 
-            CssParser defaultCssParser = new CssParser(settings.CssErrorHandler);
+            CssParser defaultCssParser = new CssParser(settings.ErrorHandler);
             defaultCssDoc = defaultCssParser.ParseText(defaultCss);
             ApplyCssDocument(
                 defaultCssDoc,
@@ -1213,7 +1213,7 @@ namespace OpenXmlPowerTools.HtmlToWml
             //DumpCss(userAgentCssDoc);
             //Environment.Exit(0);
 
-            CssParser userCssParser = new CssParser(settings.CssErrorHandler);
+            CssParser userCssParser = new CssParser(settings.ErrorHandler);
             userCssDoc = userCssParser.ParseText(userCss);
             ApplyCssDocument(
                 userCssDoc,
@@ -1225,7 +1225,7 @@ namespace OpenXmlPowerTools.HtmlToWml
             //DumpCss(userCssDoc);
             //Environment.Exit(0);
 
-            CssParser authorCssParser = new CssParser(settings.CssErrorHandler);
+            CssParser authorCssParser = new CssParser(settings.ErrorHandler);
             authorCssDoc = authorCssParser.ParseText(authorCss);
             ApplyCssDocument(
                 authorCssDoc,
@@ -1468,7 +1468,7 @@ namespace OpenXmlPowerTools.HtmlToWml
 
         private static CssExpression HandleLengthComputeError(HtmlToWmlConverterSettings settings, string error)
         {
-            settings.CssErrorHandler.SemanticError(error);
+            settings.ErrorHandler.CSSSemanticError(error);
             return new CssExpression { Terms = new List<CssTerm> { new CssTerm { Value = "auto", Type = OpenXmlPowerTools.HtmlToWml.CSS.CssTermType.String } } };
         }
 
@@ -1565,7 +1565,7 @@ namespace OpenXmlPowerTools.HtmlToWml
 
         private static CssExpression HandleFontComputeError(HtmlToWmlConverterSettings settings, string error)
         {
-            settings.CssErrorHandler.SemanticError(error);
+            settings.ErrorHandler.CSSSemanticError(error);
             return new CssExpression { Terms = new List<CssTerm> { new CssTerm { Value = FontSizeMap["medium"].ToString(), Type = OpenXmlPowerTools.HtmlToWml.CSS.CssTermType.Number, Unit = CssUnit.PT, } } };
         }
 
@@ -1867,7 +1867,7 @@ namespace OpenXmlPowerTools.HtmlToWml
                     string style = (string)styleAtt;
                     string cssString = element.Name + "{" + style + "}";
                     cssString = cssString.Replace('\"', '\'');
-                    CssParser cssParser = new CssParser(settings.CssErrorHandler);
+                    CssParser cssParser = new CssParser(settings.ErrorHandler);
                     CssDocument cssDoc = cssParser.ParseText(cssString);
                     ApplyCssToElement(
                         cssDoc,
