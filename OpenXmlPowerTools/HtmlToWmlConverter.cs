@@ -64,7 +64,7 @@ namespace OpenXmlPowerTools
             XElement xhtml,
             HtmlToWmlConverterSettings settings)
         {
-            return HtmlToWmlConverterCore.ConvertHtmlToWml(defaultCss, authorCss, userCss, xhtml, settings, null, null);
+            return new HtmlToWmlConverterCore().ConvertHtmlToWml(defaultCss, authorCss, userCss, xhtml, settings, null, null);
         }
 
         public static WmlDocument ConvertHtmlToWml(
@@ -76,7 +76,7 @@ namespace OpenXmlPowerTools
             WmlDocument emptyDocument,
             string annotatedHtmlDumpFileName)
         {
-            return HtmlToWmlConverterCore.ConvertHtmlToWml(defaultCss, authorCss, userCss, xhtml, settings, emptyDocument, annotatedHtmlDumpFileName);
+            return new HtmlToWmlConverterCore().ConvertHtmlToWml(defaultCss, authorCss, userCss, xhtml, settings, emptyDocument, annotatedHtmlDumpFileName);
         }
 
         private static string s_Blank_wml_base64 = @"UEsDBBQABgAIAAAAIQAJJIeCgQEAAI4FAAATAAgCW0NvbnRlbnRfVHlwZXNdLnhtbCCiBAIooAAC
