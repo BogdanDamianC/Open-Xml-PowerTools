@@ -558,6 +558,14 @@ namespace OpenXmlPowerTools.HtmlToWml.CSS
             }
         }
 
+        public bool IsInherited
+        {
+            get
+            {
+                return (this != null && this.ToString() == "inherit");
+            }
+        }
+
         public override string ToString()
         {
             StringBuilder sb = new StringBuilder();
