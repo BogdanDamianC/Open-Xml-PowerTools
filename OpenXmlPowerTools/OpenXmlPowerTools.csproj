@@ -69,6 +69,7 @@
     <Compile Include="HtmlToWmlConverterCore.cs" />
     <Compile Include="HtmlToWmlCssApplier.cs" />
     <Compile Include="HtmlToWmlCssParser.cs" />
+    <Compile Include="BitmapImageData.cs" />
     <Compile Include="MetricsGetter.cs" />
     <Compile Include="SmlCellFormatter.cs" />
     <Compile Include="SmlDataRetriever.cs" />
