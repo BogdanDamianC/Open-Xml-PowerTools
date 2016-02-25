@@ -26,6 +26,7 @@ using OpenXmlPowerTools;
 using OpenXmlPowerTools.HtmlToWml;
 using OpenXmlPowerTools.HtmlToWml.CSS;
 using System.Globalization;
+using System.Drawing;
 
 #if false
 Sort:
@@ -3033,20 +3034,44 @@ namespace OpenXmlPowerTools.HtmlToWml
                     }
                 }
                 string value = term.Value;
-                if (value.Substring(0, 1) == "#" && value.Length == 4)
+                if (value.StartsWith("#"))                 
                 {
-                    string e = ConvertSingleDigit(value.Substring(1, 1)) +
-                        ConvertSingleDigit(value.Substring(2, 1)) +
-                        ConvertSingleDigit(value.Substring(3, 1));
-                    return e;
+                    if(value.Length == 4){
+                        string e = ConvertSingleDigit(value.Substring(1, 1)) +
+                            ConvertSingleDigit(value.Substring(2, 1)) +
+                            ConvertSingleDigit(value.Substring(3, 1));
+                        return e;
+                    }
+                    else
+                        return value.Substring(1);
                 }
-                if (value.Substring(0, 1) == "#")
-                    return value.Substring(1);
-                if (ColorMap.ContainsKey(value))
-                    return ColorMap[value];
+                    
+                if (value.Equals("inherit", StringComparison.InvariantCultureIgnoreCase)
+                    || value.Equals("transparent", StringComparison.InvariantCultureIgnoreCase))
+                    return value;
+                string tmpColor = null;
+                if (ColorMap.TryGetValue(value, out tmpColor))
+                    return tmpColor;
+                else if((tmpColor = GetHexColor(value)) != null)
+                    return tmpColor;
                 return value;
             }
             return "000000";
+        }
+
+        private static string GetHexColor(string strColor)
+        {
+            try
+            {
+                var parsedColor = ColorTranslator.FromHtml(strColor);
+                if (parsedColor == null || parsedColor.IsEmpty)
+                    return null;
+                return string.Format("{0:X2}{1:X2}{2:X2}", parsedColor.R, parsedColor.G, parsedColor.B);
+            }
+            catch
+            {
+                return null;
+            }
         }
 
         private static string ConvertSingleDigit(string singleDigit)

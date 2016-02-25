@@ -142,8 +142,13 @@ namespace OpenXmlPowerTools.HtmlToWml
             CssExpression property = null;
             if (d != null && d.TryGetValue(propertyName, out property))
             {
-                if (element.Parent != null && property.IsInherited)
-                    return element.Parent.GetProp(propertyName);
+                if (property.IsInherited)
+                {
+                    if (element.Parent != null)
+                        return element.Parent.GetProp(propertyName);
+                    else
+                        return null;
+                }
                 return property;
             }
             return null;
@@ -1047,7 +1052,7 @@ namespace OpenXmlPowerTools.HtmlToWml
                 {
                     var descendantNodesHaveText = element.DescendantNodes().OfType<XText>().Any(t => !string.IsNullOrWhiteSpace(t.Value));
                     var children = TransformChildren(element, context, NextExpected.Paragraph, preserveWhiteSpace);
-                    
+
                     if (ElementHasBlockChildren(element, context))
                     {
                         var newElementRaw = new XElement("dummy", children);
@@ -1059,16 +1064,18 @@ namespace OpenXmlPowerTools.HtmlToWml
                                 if (e.Name == W.hyperlink || e.Name == W.r)
                                     return new XElement(W.p, e);
                                 return e;
-                            }));
-
-                        return new XElement(W.tc,
-                            GetCellProperties(element),
-                            newElements.Elements());
+                            })).Elements().ToList();
+                        if (newElements.Last().Name != W.p)
+                        {
+                            var tableTOC = new XElement(W.pStyle);
+                            tableTOC.SetAttributeValue(W.val, "TableContents");
+                            newElements.Add(new XElement(W.p, new XElement(W.rPr, tableTOC), new XElement(W.r)));
+                        }
+                        return new XElement(W.tc, GetCellProperties(element), newElements);
                     }
-                    
+
                     XElement p = null;
                     var paragraphProperties = GetParagraphProperties(element, null, context.ConversionSettings);
-
 
                     if (descendantNodesHaveText)
                         p = new XElement(W.p, paragraphProperties, children);
@@ -3021,6 +3028,16 @@ namespace OpenXmlPowerTools.HtmlToWml
             return rPr;
         }
 
+        private static string GetStringFromCssExpression(CssExpression expression, bool useLowerCase = false)
+        {
+            if(expression == null)
+                return null;
+            var strRet = expression.ToString();
+            if(useLowerCase)
+                strRet = strRet.ToLower();
+            return strRet;
+        }
+
         private static XElement GetRunProperties(XElement element, HtmlToWmlConverterSettings settings)
         {
             CssExpression colorProperty = element.GetProp("color");
@@ -3033,15 +3050,13 @@ namespace OpenXmlPowerTools.HtmlToWml
             CssExpression letterSpacingProperty = element.GetProp("letter-spacing");
             CssExpression directionProp = element.GetProp("direction");
 
-            string colorPropertyString = colorProperty.ToString();
             string fontFamilyString = GetUsedFontFromFontFamilyProperty(fontFamilyProperty);
             TPoint? fontSizeTPoint = GetUsedSizeFromFontSizeProperty(fontSizeProperty);
-            string textDecorationString = textDecorationProperty.ToString();
-            string fontStyleString = fontStyleProperty.ToString();
-            string fontWeightString = fontWeightProperty.ToString().ToLower();
-            string backgroundColorString = backgroundColorProperty.ToString().ToLower();
-            string letterSpacingString = letterSpacingProperty.ToString().ToLower();
-            string directionString = directionProp.ToString().ToLower();
+            string textDecorationString = GetStringFromCssExpression(textDecorationProperty);
+            string fontStyleString = GetStringFromCssExpression(fontStyleProperty);
+            string fontWeightString = GetStringFromCssExpression(fontWeightProperty, true);
+            string letterSpacingString = GetStringFromCssExpression(letterSpacingProperty, true);
+            string directionString = GetStringFromCssExpression(directionProp, true);
 
             bool subAncestor = element.AncestorsAndSelf(XhtmlNoNamespace.sub).Any();
             bool supAncestor = element.AncestorsAndSelf(XhtmlNoNamespace.sup).Any();
@@ -3058,7 +3073,8 @@ namespace OpenXmlPowerTools.HtmlToWml
                 dirAttributeString = dirAttribute.Value.ToLower();
 
             XElement shd = null;
-            if (backgroundColorString != "transparent")
+            string backgroundColorString = GetWmlColor(backgroundColorProperty);
+            if (backgroundColorString != null)
                 shd = new XElement(W.shd, new XAttribute(W.val, "clear"),
                     new XAttribute(W.color, "auto"),
                     new XAttribute(W.fill, backgroundColorString));
@@ -3080,8 +3096,9 @@ namespace OpenXmlPowerTools.HtmlToWml
             }
 
             // todo I think this puts a color on every element.
-            XElement color = colorPropertyString != null ?
-                new XElement(W.color, new XAttribute(W.val, colorPropertyString)) : null;
+            string hexColorProperty = GetWmlColor(colorProperty);
+            XElement color = hexColorProperty != null ?
+                new XElement(W.color, new XAttribute(W.val, hexColorProperty)) : null;
 
             XElement sz = null;
             XElement szCs = null;
@@ -3121,7 +3138,7 @@ namespace OpenXmlPowerTools.HtmlToWml
                     new XAttribute(W.val, "Hyperlink"));
 
             XElement spacing = null;
-            if (letterSpacingProperty.IsNotNormal)
+            if (letterSpacingProperty != null && letterSpacingProperty.IsNotNormal)
                 spacing = new XElement(W.spacing,
                     new XAttribute(W.val, (long)(Twip)letterSpacingProperty));
 
@@ -3158,7 +3175,7 @@ namespace OpenXmlPowerTools.HtmlToWml
         // def and ghi.
         private static string GetDisplayText(XText node, bool preserveWhiteSpace)
         {
-            string textTransform = node.Parent.GetProp("text-transform").ToString();
+            string textTransform = GetStringFromCssExpression(node.Parent.GetProp("text-transform"));
             bool isFirst = node.Parent.Name == XhtmlNoNamespace.p && node == node.Parent.FirstNode;
             bool isLast = node.Parent.Name == XhtmlNoNamespace.p && node == node.Parent.LastNode;
 
@@ -3324,7 +3341,7 @@ namespace OpenXmlPowerTools.HtmlToWml
                 return width;
 
             CssExpression maxwidth = element.GetProp("max-width");
-            if (maxwidth != null && !maxwidth.IsAuto && (long)(Twip)maxwidth < (long)(Twip)width)
+            if (maxwidth != null && !maxwidth.IsAuto && maxwidth != "none" && (long)(Twip)maxwidth < (long)(Twip)width)
                 return maxwidth;
             else
                 return width;
@@ -4293,21 +4310,26 @@ namespace OpenXmlPowerTools.HtmlToWml
 
         private static XElement GetBackgroundProperty(XElement element)
         {
-            CssExpression color = element.GetProp("background-color");
-
-            // todo this really should test against default background color
-            if (color.ToString() != "transparent")
-            {
-                string hexString = color.ToString();
-                XElement shd = new XElement(W.shd,
-                    new XAttribute(W.val, "clear"),
-                    new XAttribute(W.color, "auto"),
-                    new XAttribute(W.fill, hexString));
-                return shd;
-            }
-            return null;
+            var color = GetWmlColor(element.GetProp("background-color"));
+            if (color == null)
+                return null;
+            XElement shd = new XElement(W.shd,
+                new XAttribute(W.val, "clear"),
+                new XAttribute(W.color, "auto"),
+                new XAttribute(W.fill, color));
+            return shd;
         }
 
+        private static string GetWmlColor(CssExpression color)
+        {
+            if (color == null)
+                return null;
+            string strColor = color.ToString();
+            if (strColor == "transparent")
+                return null;
+            else
+                return strColor;
+        }
     }
 
     public class PictureId
