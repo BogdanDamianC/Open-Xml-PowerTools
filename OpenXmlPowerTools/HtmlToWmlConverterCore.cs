@@ -4301,10 +4301,17 @@ namespace OpenXmlPowerTools.HtmlToWml
         {
             if (fontFamily == null)
                 return null;
-            string fullFontFamily = fontFamily.Terms.Select(t => t + " ").StringConcatenate().Trim();
-            string lcfont = fullFontFamily.ToLower();
-            if (InstalledFonts.ContainsKey(lcfont))
-                return InstalledFonts[lcfont];
+            string lcfont;
+            string fullFontFamily = string.Empty;
+            foreach (var term in fontFamily.Terms)
+            {
+                string fontTerm = term.ToString().ToLower();
+                if (InstalledFonts.TryGetValue(fontTerm, out lcfont))
+                    return lcfont;
+                fullFontFamily += " " + fontTerm;
+            }
+            if (InstalledFonts.TryGetValue(fullFontFamily, out lcfont))
+                return lcfont;
             return null;
         }
 
