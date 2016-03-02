@@ -1670,7 +1670,15 @@ namespace OpenXmlPowerTools.HtmlToWml
             bool attributeMatch = true;
 
             if (simpleSelector.Pseudo != null)
-                return false;
+            {
+                if (simpleSelector.Pseudo == "first-child" && element.Parent != null)
+                    return element.Parent.Elements().First() == element;
+                else if (simpleSelector.Pseudo == "last-child" && element.Parent != null)
+                    return element.Parent.Elements().Last() == element;
+                else
+                    return false;
+            }
+                
             if (simpleSelector.ElementName != null && simpleSelector.ElementName != "" && simpleSelector.ElementName != "*")
                 elemantNameMatch = element.Name.ToString() == simpleSelector.ElementName.ToString();
             if (elemantNameMatch)
@@ -2008,6 +2016,10 @@ namespace OpenXmlPowerTools.HtmlToWml
                             }
                         }
                     }
+                    var borderAttribute = element.Attribute("border");
+                    if(borderAttribute != null)
+                        borderWidth = new CssExpression { Terms = new List<CssTerm> { new CssTerm() { Type = CssTermType.Number, Value = borderAttribute.Value, Unit = CssUnit.PX } } };
+
                     foreach (var side in new[] { "top", "left", "bottom", "right" })
                     {
                         if (borderWidth != null)
