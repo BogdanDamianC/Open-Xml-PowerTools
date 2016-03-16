@@ -764,31 +764,30 @@ namespace OpenXmlPowerTools.HtmlToWml
         private static object NormalizeTransform(XNode node)
         {
             XElement element = node as XElement;
-            if (element != null)
+            if (element == null)
+                return node;
+
+            if (element.Name == W.p && element.Elements().Any(c => c.Name == W.p || c.Name == W.tbl))
             {
-                if (element.Name == W.p && element.Elements().Any(c => c.Name == W.p || c.Name == W.tbl))
-                {
-                    var groupedChildren = element.Elements()
-                        .GroupAdjacent(e => e.Name == W.p || e.Name == W.tbl);
-                    var newContent = groupedChildren
-                        .Select(g =>
+                var groupedChildren = element.Elements()
+                    .GroupAdjacent(e => e.Name == W.p || e.Name == W.tbl);
+                var newContent = groupedChildren
+                    .Select(g =>
+                    {
+                        if (g.Key == false)
                         {
-                            if (g.Key == false)
-                            {
-                                XElement paragraph = new XElement(W.p,
-                                    element.Elements(W.pPr),
-                                    g.Where(gc => gc.Name != W.pPr));
-                                return (object)paragraph;
-                            }
-                            return g.Select(n => NormalizeTransform(n));
-                        });
-                    return newContent;
-                }
-                return new XElement(element.Name,
-                    element.Attributes(),
-                    element.Nodes().Select(n => NormalizeTransform(n)));
+                            XElement paragraph = new XElement(W.p,
+                                element.Elements(W.pPr),
+                                g.Where(gc => gc.Name != W.pPr));
+                            return (object)paragraph;
+                        }
+                        return g.Select(n => NormalizeTransform(n)).ToList();
+                    }).ToList();
+                return newContent;
             }
-            return node;
+            return new XElement(element.Name,
+                element.Attributes(),
+                element.Nodes().Select(n => NormalizeTransform(n)));
         }
 
         private enum NextExpected
@@ -880,24 +879,10 @@ namespace OpenXmlPowerTools.HtmlToWml
 
                 if (element.Name == XhtmlNoNamespace.div)
                 {
-                    if (nextExpected == NextExpected.Paragraph)
-                    {
-                        if (element.Descendants().Any(d => d.Name == XhtmlNoNamespace.h1 ||
-                            d.Name == XhtmlNoNamespace.li ||
-                            d.Name == XhtmlNoNamespace.p ||
-                            d.Name == XhtmlNoNamespace.table))
-                        {
-                            return TransformChildren(element, context, nextExpected, preserveWhiteSpace);
-                        }
-                        else
-                        {
-                            return GenerateNextExpected(element, context, null, nextExpected, false);
-                        }
-                    }
+                    if (nextExpected == NextExpected.Paragraph && !ElementHasBlockChildren(element, context))
+                        return GenerateNextExpected(element, context, null, nextExpected, false);
                     else
-                    {
                         return TransformChildren(element, context, nextExpected, preserveWhiteSpace);
-                    }
                 }
 
                 if (element.Name == XhtmlNoNamespace.em)
@@ -955,17 +940,13 @@ namespace OpenXmlPowerTools.HtmlToWml
                 }
 
                 if (element.Name == XhtmlNoNamespace.li)
-                {
                     return GenerateNextExpected(element, context, null, NextExpected.Paragraph, false);
-                }
 
                 if (element.Name == XhtmlNoNamespace.ol)
                     return TransformChildren(element, context, NextExpected.Paragraph, preserveWhiteSpace);
 
                 if (element.Name == XhtmlNoNamespace.p)
-                {
                     return GenerateNextExpected(element, context, null, NextExpected.Paragraph, false);
-                }
 
                 if (element.Name == XhtmlNoNamespace.s)
                     return TransformChildren(element, context, nextExpected, preserveWhiteSpace);
@@ -1074,7 +1055,7 @@ namespace OpenXmlPowerTools.HtmlToWml
                     return TransformChildren(element, context, nextExpected, preserveWhiteSpace);
 
                 if (element.Name == XhtmlNoNamespace.br)
-                    if (nextExpected == NextExpected.Paragraph)
+                    if (GetNextExpected(element, nextExpected, context) == NextExpected.Paragraph)
                     {
                         return new XElement(W.p,new XElement(W.r, new XElement(W.t)));
                     }
@@ -1094,7 +1075,7 @@ namespace OpenXmlPowerTools.HtmlToWml
             }
 
             if (node.Parent.Name != XhtmlNoNamespace.title)
-                return GenerateNextExpected(node, context, null, nextExpected, preserveWhiteSpace);
+                return GenerateNextExpected(node, context, null, GetNextExpected(node, nextExpected, context), preserveWhiteSpace);
 
             return null;
         }
@@ -1157,7 +1138,7 @@ namespace OpenXmlPowerTools.HtmlToWml
                 return processedRunNodes;
         }
 
-        private static NextExpected GetNextExpected(XElement element, NextExpected nextExpected, ConversionContext context)
+        private static NextExpected GetNextExpected(XNode element, NextExpected nextExpected, ConversionContext context)
         {
             if (element == null)
                 return nextExpected;
@@ -1168,21 +1149,28 @@ namespace OpenXmlPowerTools.HtmlToWml
 
         }
 
-        private static bool ElementHasBlockChildren(XElement element, ConversionContext context)
+        private static bool ElementHasBlockChildren(XNode node, ConversionContext context)
         {
+            XElement element = node as XElement;
+            if (element == null)
+                return false;
             bool elementHasBlockChildren = true;
             if (!context.cachedHasBlockChildren.TryGetValue(element, out elementHasBlockChildren))
             {
-                elementHasBlockChildren = element.Descendants().Any(d => d.Name != XhtmlNoNamespace.span
-                    && d.Name != XhtmlNoNamespace.strong && d.Name != XhtmlNoNamespace.b
-                    && d.Name != XhtmlNoNamespace.i && d.Name != XhtmlNoNamespace.em
-                    && d.Name != XhtmlNoNamespace.a && d.Name != XhtmlNoNamespace.blockquote
-                    && d.Name != XhtmlNoNamespace.sub && d.Name != XhtmlNoNamespace.sup
-                    && !ElementHasBlockChildren(d, context));
+                elementHasBlockChildren = element.Elements().Any(d => !IsRun(d) || ElementHasBlockChildren(d, context));
                 context.cachedHasBlockChildren[element] = elementHasBlockChildren;
             }
             return elementHasBlockChildren;
-        }        
+        }
+  
+        private static bool IsRun(XElement d){
+            return d.Name == XhtmlNoNamespace.span
+                    || d.Name == XhtmlNoNamespace.strong || d.Name == XhtmlNoNamespace.b
+                    || d.Name == XhtmlNoNamespace.i || d.Name == XhtmlNoNamespace.em
+                    || d.Name == XhtmlNoNamespace.u
+                    || d.Name == XhtmlNoNamespace.a || d.Name == XhtmlNoNamespace.blockquote
+                    || d.Name == XhtmlNoNamespace.sub || d.Name == XhtmlNoNamespace.sup;
+        }
 
         private static XElement FontMerge(XElement higherPriorityFont, XElement lowerPriorityFont)
         {
@@ -2368,9 +2356,27 @@ namespace OpenXmlPowerTools.HtmlToWml
                 XElement element = node as XElement;
                 if (element != null)
                 {
-                    return new XElement(W.p,
-                        GetParagraphProperties(element, styleName, context.ConversionSettings),
-                        TransformChildren(element, context, NextExpected.Run, preserveWhiteSpace));
+                    var children = TransformChildren(element, context, NextExpected.Run, preserveWhiteSpace);
+                    var leveledChildrenElements = new XElement("dummy", children).Elements().ToList();
+                    var firstParagraphProperties = GetParagraphProperties(element, styleName, context.ConversionSettings);
+
+                    if (leveledChildrenElements.Count == 0 || leveledChildrenElements[0].Name != W.p)
+                        return new XElement(W.p, firstParagraphProperties, leveledChildrenElements);
+                    else
+                    {
+                        var finalpPr = leveledChildrenElements[0].Elements().FirstOrDefault(e => e.Name == W.pPr);
+                        if (finalpPr != null)
+                        {
+                            //update the first paragraph to have the parent and child properties - the paragraph properties are merged by adding the extra properties from the parent
+                            var hash = finalpPr.Elements().ToDictionary(e => e.Name);
+                            foreach (var prop in firstParagraphProperties.Elements().Where(e => !hash.ContainsKey(e.Name)))
+                                finalpPr.Add(prop);
+                            leveledChildrenElements[0] = new XElement(W.p, leveledChildrenElements[0].Elements());
+                        }
+                        else
+                            leveledChildrenElements[0] = new XElement(W.p, firstParagraphProperties, leveledChildrenElements[0].Elements());                        
+                        return leveledChildrenElements;
+                    }
                 }
                 else
                 {
