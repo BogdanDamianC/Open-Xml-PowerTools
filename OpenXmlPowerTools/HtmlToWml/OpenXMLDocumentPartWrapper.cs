@@ -14,7 +14,7 @@ using OpenXmlPowerTools.HtmlToWml.CSS;
 namespace OpenXmlPowerTools.HtmlToWml
 {
     /// <summary>
-    /// common interface to access the document parts common properties
+    /// common interface to access the document parts common properties for the MainDocumentPart HeaderPart and FooterPart - they don't seem to have a common interface
     /// </summary>
     internal interface IOpenXMLDocumentPartWrapper
     {
@@ -26,7 +26,7 @@ namespace OpenXmlPowerTools.HtmlToWml
 
     internal class OpenXMLDocumentPartWrapper : IOpenXMLDocumentPartWrapper
     {
-        public dynamic documentPart;
+        private dynamic documentPart;
         public OpenXMLDocumentPartWrapper(object documentPart)
         {
             this.documentPart = documentPart;
