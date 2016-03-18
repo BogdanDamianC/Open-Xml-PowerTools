@@ -167,60 +167,62 @@ namespace OpenXmlPowerTools.HtmlToWml
             return ConvertHtmlToWml(defaultCss, authorCss, userCss, xhtml, settings, null, null);
         }
 
-        internal class ConversionContext{      
-            public HtmlToWmlConverterSettings ConversionSettings;
-            public WmlDocument emptyDocument;
-            public XElement PreparedHtml;
-            public WordprocessingDocument WordDocument;
-            public Dictionary<XElement, bool> cachedHasBlockChildren = new Dictionary<XElement, bool>();
-        }
+
 
         public static WmlDocument ConvertHtmlToWml(
             string defaultCss,
             string authorCss,
             string userCss,
-            XElement xhtml,
+            XElement bodyxhtml,
             HtmlToWmlConverterSettings settings,
             WmlDocument emptyDocument,
             string annotatedHtmlDumpFileName)
         {
-            var context = new ConversionContext();
-            context.ConversionSettings = settings;
-            context.emptyDocument = emptyDocument ?? HtmlToWmlConverter.EmptyDocument;
+            return ConvertHtmlToWml(defaultCss, authorCss, userCss, null, bodyxhtml, null, settings, emptyDocument, annotatedHtmlDumpFileName);
+        }
 
-            // clone and transform all element names to lower case
-            context.PreparedHtml  = (XElement)TransformToLower(xhtml);
-
-            // add pseudo cells for rowspan
-            context.PreparedHtml = (XElement)AddPseudoCells(context.PreparedHtml);
-
-            context.PreparedHtml = (XElement)TransformWhiteSpaceInPreCodeTtKbdSamp(context.PreparedHtml, false, false);
+        public static WmlDocument ConvertHtmlToWml(
+                   string defaultCss,
+                   string authorCss,
+                   string userCss,
+                   XElement headerxhtml,
+                   XElement bodyxhtml,
+                   XElement footerxhtml,
+                   HtmlToWmlConverterSettings settings,
+                   WmlDocument emptyDocument,
+                   string annotatedHtmlDumpFileName)
+        {
+            var context = new HtmlToWmlConverterContext(settings, emptyDocument, headerxhtml, bodyxhtml, footerxhtml);
 
             CssDocument defaultCssDoc, userCssDoc, authorCssDoc;
+            CssDocument headerDefaultCssDoc, headerUserCssDoc, headerAuthorCssDoc;
             CssApplier.ApplyAllCss(
                 defaultCss,
                 authorCss,
                 userCss,
-                context.PreparedHtml,
+                context.PreparedBodyHtml,
                 settings,
                 out defaultCssDoc,
                 out authorCssDoc,
                 out userCssDoc,
                 annotatedHtmlDumpFileName);
 
-            WmlDocument newWmlDocument;
+            if (context.PreparedHeaderHtml != null)
+                CssApplier.ApplyAllCss(defaultCss, authorCss, userCss, context.PreparedHeaderHtml, settings, out headerDefaultCssDoc, out headerUserCssDoc, out headerAuthorCssDoc, annotatedHtmlDumpFileName);
 
+            WmlDocument newWmlDocument;
             using (OpenXmlMemoryStreamDocument streamDoc = new OpenXmlMemoryStreamDocument(context.emptyDocument))
             {
                 using (context.WordDocument = streamDoc.GetWordprocessingDocument())
                 {
-                    AnnotateOlUl(context.WordDocument, context.PreparedHtml);
+                    AnnotateOlUl(context.WordDocument, context.PreparedBodyHtml);
                     UpdateMainDocumentPart(context);
-                    NormalizeMainDocumentPart(context.WordDocument);
-                    StylesUpdater.UpdateStylesPart(context.WordDocument, context.PreparedHtml, context.ConversionSettings, defaultCssDoc, authorCssDoc, userCssDoc);
-                    HtmlToWmlFontUpdater.UpdateFontsPart(context.WordDocument, context.PreparedHtml, context.ConversionSettings);
-                    ThemeUpdater.UpdateThemePart(context.WordDocument, context.PreparedHtml, context.ConversionSettings);
-                    NumberingUpdater.UpdateNumberingPart(context.WordDocument, context.PreparedHtml, context.ConversionSettings);
+                    UpdateHeaderDocumentPart(context);
+                    //NormalizeDocumentPart(context.WordDocument.MainDocumentPart);
+                    StylesUpdater.UpdateStylesPart(context.WordDocument, context.PreparedBodyHtml, context.ConversionSettings, defaultCssDoc, authorCssDoc, userCssDoc);
+                    HtmlToWmlFontUpdater.UpdateFontsPart(context.WordDocument, context.PreparedBodyHtml, context.ConversionSettings);
+                    ThemeUpdater.UpdateThemePart(context.WordDocument, context.PreparedBodyHtml, context.ConversionSettings);
+                    NumberingUpdater.UpdateNumberingPart(context.WordDocument, context.PreparedBodyHtml, context.ConversionSettings);
                 }
                 newWmlDocument = streamDoc.GetModifiedWmlDocument();
             }
@@ -228,67 +230,7 @@ namespace OpenXmlPowerTools.HtmlToWml
             return newWmlDocument;
         }
 
-        private static object TransformToLower(XNode node)
-        {
-            XElement element = node as XElement;
-            if (element != null)
-            {
-                XElement e = new XElement(element.Name.LocalName.ToLower(),
-                    element.Attributes().Select(a => new XAttribute(a.Name.LocalName.ToLower(), a.Value)),
-                    element.Nodes().Select(n => TransformToLower(n)));
-                return e;
-            }
-            return node;
-        }
 
-        private static XElement AddPseudoCells(XElement html)
-        {
-            while (true)
-            {
-                var rowSpanCell = html
-                    .Descendants(XhtmlNoNamespace.td)
-                    .FirstOrDefault(td => td.Attribute(XhtmlNoNamespace.rowspan) != null && td.Attribute("HtmlToWmlVMergeRestart") == null);
-                if (rowSpanCell == null)
-                    break;
-                rowSpanCell.Add(
-                    new XAttribute("HtmlToWmlVMergeRestart", "true"));
-                int colNumber = rowSpanCell.ElementsBeforeSelf(XhtmlNoNamespace.td).Count();
-                int numberPseudoToAdd = (int)rowSpanCell.Attribute(XhtmlNoNamespace.rowspan) - 1;
-                var tr = rowSpanCell.Ancestors(XhtmlNoNamespace.tr).FirstOrDefault();
-                if (tr == null)
-                    throw new OpenXmlPowerToolsException("Invalid HTML - td does not have parent tr");
-                var rowsToAddTo = tr
-                    .ElementsAfterSelf(XhtmlNoNamespace.tr)
-                    .Take(numberPseudoToAdd)
-                    .ToList();
-                foreach (var rowToAddTo in rowsToAddTo)
-                {
-                    if (colNumber > 0)
-                    {
-                        var tdToAddAfter = rowToAddTo
-                            .Elements(XhtmlNoNamespace.td)
-                            .Skip(colNumber - 1)
-                            .FirstOrDefault();
-                        var td = new XElement(XhtmlNoNamespace.td,
-                            rowSpanCell.Attributes(),
-                            new XAttribute("HtmlToWmlVMergeNoRestart", "true"));
-                        tdToAddAfter.AddAfterSelf(td);
-                    }
-                    else
-                    {
-                        var tdToAddBefore = rowToAddTo
-                            .Elements(XhtmlNoNamespace.td)
-                            .Skip(colNumber)
-                            .FirstOrDefault();
-                        var td = new XElement(XhtmlNoNamespace.td,
-                            rowSpanCell.Attributes(),
-                            new XAttribute("HtmlToWmlVMergeNoRestart", "true"));
-                        tdToAddBefore.AddBeforeSelf(td);
-                    }
-                }
-            }
-            return html;
-        }
 
         public class NumberedItemAnnotation
         {
@@ -319,7 +261,7 @@ namespace OpenXmlPowerTools.HtmlToWml
             }
         }
 
-        private static void UpdateMainDocumentPart(ConversionContext context)
+        private static void UpdateMainDocumentPart(HtmlToWmlConverterContext context)
         {
             XDocument xDoc = XDocument.Parse(
 @"<w:document xmlns:wpc='http://schemas.microsoft.com/office/word/2010/wordprocessingCanvas'
@@ -340,7 +282,7 @@ namespace OpenXmlPowerTools.HtmlToWml
             mc:Ignorable='w14 wp14'/>");
 
             XElement body = new XElement(W.body,
-                        Transform(context.PreparedHtml, context, NextExpected.Paragraph, false),
+                        Transform(new OpenXMLDocumentPartWrapper(context.WordDocument.MainDocumentPart), context.PreparedBodyHtml, context, NextExpected.Paragraph, false),
                         context.ConversionSettings.SectPr);
 
             AddNonBreakingSpacesForSpansWithWidth(context, body);
@@ -348,54 +290,61 @@ namespace OpenXmlPowerTools.HtmlToWml
 
             foreach (var d in body.Descendants())
                 d.Attributes().Where(a => a.Name.Namespace == PtOpenXml.pt).Remove();
-            xDoc.Root.Add(body);
+            var normalizedContent = NormalizeTransform(body);
+            xDoc.Root.Add(normalizedContent);
             context.WordDocument.MainDocumentPart.PutXDocument(xDoc);
         }
 
-        private static object TransformWhiteSpaceInPreCodeTtKbdSamp(XNode node, bool inPre, bool inOther)
+        private static void UpdateHeaderDocumentPart(HtmlToWmlConverterContext context)
         {
-            XElement element = node as XElement;
-            if (element != null)
+            if (context.PreparedHeaderHtml == null)
+                return;
+            var allDocument = context.WordDocument.MainDocumentPart.GetXDocument();
+            XDocument xDoc = XDocument.Parse(
+                    @"<?xml version='1.0' encoding='utf-8' standalone='yes'?>
+                    <w:hdr xmlns:wpc='http://schemas.microsoft.com/office/word/2010/wordprocessingCanvas'
+                           xmlns:mc='http://schemas.openxmlformats.org/markup-compatibility/2006'
+                           xmlns:o='urn:schemas-microsoft-com:office:office'
+                           xmlns:r='http://schemas.openxmlformats.org/officeDocument/2006/relationships'
+                           xmlns:m='http://schemas.openxmlformats.org/officeDocument/2006/math'
+                           xmlns:v='urn:schemas-microsoft-com:vml'
+                           xmlns:wp14='http://schemas.microsoft.com/office/word/2010/wordprocessingDrawing'
+                           xmlns:wp='http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing'
+                           xmlns:w10='urn:schemas-microsoft-com:office:word'
+                           xmlns:w='http://schemas.openxmlformats.org/wordprocessingml/2006/main'
+                           xmlns:w14='http://schemas.microsoft.com/office/word/2010/wordml'
+                           xmlns:w15='http://schemas.microsoft.com/office/word/2012/wordml'
+                           xmlns:wpg='http://schemas.microsoft.com/office/word/2010/wordprocessingGroup'
+                           xmlns:wpi='http://schemas.microsoft.com/office/word/2010/wordprocessingInk'
+                           xmlns:wne='http://schemas.microsoft.com/office/word/2006/wordml'
+                           xmlns:wps='http://schemas.microsoft.com/office/word/2010/wordprocessingShape'
+                           mc:Ignorable='w14 w15 wp14' />");
+
+            HeaderPart headerPart = context.WordDocument.MainDocumentPart.AddNewPart<HeaderPart>();
+            XElement body = new XElement("dummy", Transform(new OpenXMLDocumentPartWrapper(headerPart), context.PreparedHeaderHtml, context, NextExpected.Paragraph, false));
+
+            AddNonBreakingSpacesForSpansWithWidth(context, body);
+            body = (XElement)TransformAndOrderElements(body);
+            foreach (var d in body.Descendants())
+                d.Attributes().Where(a => a.Name.Namespace == PtOpenXml.pt).Remove();
+            
+
+            var normalizedContent = (XElement)NormalizeTransform(body);
+            xDoc.Root.Add(normalizedContent.Elements());
+            //xDoc.Root.Add(body.Elements());
+            headerPart.PutXDocument(xDoc);
+            string headerPartId = context.WordDocument.MainDocumentPart.GetIdOfPart(headerPart);
+
+            
+            var sections = allDocument.Descendants(W.sectPr).ToList();
+            foreach (var section in sections)
             {
-                if (element.Name == XhtmlNoNamespace.pre)
-                {
-                    return new XElement(element.Name,
-                        element.Attributes(),
-                        element.Nodes().Select(n => TransformWhiteSpaceInPreCodeTtKbdSamp(n, true, false)));
-                }
-                if (element.Name == XhtmlNoNamespace.code ||
-                    element.Name == XhtmlNoNamespace.tt ||
-                    element.Name == XhtmlNoNamespace.kbd ||
-                    element.Name == XhtmlNoNamespace.samp)
-                {
-                    return new XElement(element.Name,
-                        element.Attributes(),
-                        element.Nodes().Select(n => TransformWhiteSpaceInPreCodeTtKbdSamp(n, false, true)));
-                }
-                return new XElement(element.Name,
-                    element.Attributes(),
-                    element.Nodes().Select(n => TransformWhiteSpaceInPreCodeTtKbdSamp(n, false, false)));
+                var referenceToAdd = new XElement(W.headerReference,
+                    new XAttribute(W.type, "default"),
+                    new XAttribute(R.id, headerPartId));
+                section.AddFirst(referenceToAdd);
             }
-            XText xt = node as XText;
-            if (xt != null && inPre)
-            {
-                var val = xt.Value.TrimStart('\r', '\n').TrimEnd('\r', '\n');
-                var groupedCharacters = val.GroupAdjacent(c => c == '\r' || c == '\n');
-                var newNodes = groupedCharacters.Select(g =>
-                {
-                    if (g.Key == true)
-                        return (object)(new XElement(XhtmlNoNamespace.br));
-                    string x = g.Select(c => c.ToString()).StringConcatenate();
-                    return new XText(x);
-                });
-                return newNodes;
-            }
-            if (xt != null && inOther)
-            {
-                var val = xt.Value.TrimStart('\r', '\n', '\t', ' ').TrimEnd('\r', '\n', '\t', ' ');
-                return new XText(val);
-            }
-            return node;
+            context.WordDocument.MainDocumentPart.PutXDocument(allDocument);
         }
 
         private static Dictionary<XName, int> Order_pPr = new Dictionary<XName, int>
@@ -657,7 +606,7 @@ namespace OpenXmlPowerTools.HtmlToWml
             return node;
         }
 
-        private static void AddNonBreakingSpacesForSpansWithWidth(ConversionContext context, XElement body)
+        private static void AddNonBreakingSpacesForSpansWithWidth(HtmlToWmlConverterContext context, XElement body)
         {
             var runsWithWidth = body.Descendants(W.r).Where(r => r.Attribute(PtOpenXml.HtmlToWmlCssWidth) != null).ToList();
             foreach (var run in runsWithWidth)
@@ -753,12 +702,12 @@ namespace OpenXmlPowerTools.HtmlToWml
             }
         }
 
-        private static void NormalizeMainDocumentPart(WordprocessingDocument wDoc)
+        private static void NormalizeDocumentPart(OpenXmlPart documentPart)
         {
-            XDocument mainXDoc = wDoc.MainDocumentPart.GetXDocument();
+            XDocument mainXDoc = documentPart.GetXDocument();
             XElement newRoot = (XElement)NormalizeTransform(mainXDoc.Root);
             mainXDoc.Root.ReplaceWith(newRoot);
-            wDoc.MainDocumentPart.PutXDocument();
+            documentPart.PutXDocument();
         }
 
         private static object NormalizeTransform(XNode node)
@@ -797,7 +746,7 @@ namespace OpenXmlPowerTools.HtmlToWml
             SubRun,
         }
 
-        private static object Transform(XNode node, ConversionContext context, NextExpected nextExpected, bool preserveWhiteSpace)
+        private static object Transform(IOpenXMLDocumentPartWrapper documentPart, XNode node, HtmlToWmlConverterContext context, NextExpected nextExpected, bool preserveWhiteSpace)
         {
             XElement element = node as XElement;
             if (element != null)
@@ -824,10 +773,10 @@ namespace OpenXmlPowerTools.HtmlToWml
 
                         if (uri != null)
                         {
-                            context.WordDocument.MainDocumentPart.AddHyperlinkRelationship(uri, true, rId);
+                            documentPart.AddHyperlinkRelationship(uri, true, rId);
                             if (element.Element(XhtmlNoNamespace.img) != null)
                             {
-                                var imageTransformed = TransformChildren(element, context, nextExpected, preserveWhiteSpace).OfType<XElement>();
+                                var imageTransformed =TransformChildren(documentPart, element, context, nextExpected, preserveWhiteSpace).OfType<XElement>();
                                 var newImageTransformed = imageTransformed
                                     .Select(i =>
                                     {
@@ -863,10 +812,10 @@ namespace OpenXmlPowerTools.HtmlToWml
                 }
 
                 if (element.Name == XhtmlNoNamespace.b)
-                    return TransformRunElement(element, context, preserveWhiteSpace);
+                    return TransformRunElement(documentPart, element, context, preserveWhiteSpace);
 
                 if (element.Name == XhtmlNoNamespace.body)
-                    return TransformChildren(element, context, nextExpected, preserveWhiteSpace);
+                    return TransformChildren(documentPart, element, context, nextExpected, preserveWhiteSpace);
 
                 if (element.Name == XhtmlNoNamespace.caption)
                 {
@@ -874,24 +823,24 @@ namespace OpenXmlPowerTools.HtmlToWml
                         GetTableRowProperties(element),
                         new XElement(W.tc,
                             GetCellPropertiesForCaption(element),
-                            TransformChildren(element, context, NextExpected.Paragraph, preserveWhiteSpace)));
+                            TransformChildren(documentPart, element, context, NextExpected.Paragraph, preserveWhiteSpace)));
                 }
 
                 if (element.Name == XhtmlNoNamespace.div)
                 {
                     if (nextExpected == NextExpected.Paragraph && !ElementHasBlockChildren(element, context))
-                        return GenerateNextExpected(element, context, null, nextExpected, false);
+                        return GenerateNextExpected(documentPart, element, context, null, nextExpected, false);
                     else
-                        return TransformChildren(element, context, nextExpected, preserveWhiteSpace);
+                        return TransformChildren(documentPart, element, context, nextExpected, preserveWhiteSpace);
                 }
 
                 if (element.Name == XhtmlNoNamespace.em)
-                    return TransformChildren(element, context, GetNextExpected(element, NextExpected.Run, context), preserveWhiteSpace);
+                    return TransformChildren(documentPart, element, context, GetNextExpected(element, NextExpected.Run, context), preserveWhiteSpace);
 
                 HeadingInfo hi = HeadingTagMap.FirstOrDefault(htm => htm.Name == element.Name);
                 if (hi != null)
                 {
-                    return GenerateNextExpected(element, context, hi.StyleName, NextExpected.Paragraph, false);
+                    return GenerateNextExpected(documentPart, element, context, hi.StyleName, NextExpected.Paragraph, false);
                 }
 
                 if (element.Name == XhtmlNoNamespace.hr)
@@ -919,17 +868,17 @@ namespace OpenXmlPowerTools.HtmlToWml
                 }
 
                 if (element.Name == XhtmlNoNamespace.html)
-                    return TransformChildren(element, context, NextExpected.Paragraph, preserveWhiteSpace);
+                    return TransformChildren(documentPart, element, context, NextExpected.Paragraph, preserveWhiteSpace);
 
                 if (element.Name == XhtmlNoNamespace.i)
-                    return TransformRunElement(element, context, preserveWhiteSpace);
+                    return TransformRunElement(documentPart, element, context, preserveWhiteSpace);
 
                 if (element.Name == XhtmlNoNamespace.blockquote)
-                    return TransformRunElement(element, context, preserveWhiteSpace);
+                    return TransformRunElement(documentPart, element, context, preserveWhiteSpace);
 
                 if (element.Name == XhtmlNoNamespace.img)
                 {
-                    var wmlImage = TransformImageToWml(element, context);
+                    var wmlImage = TransformImageToWml(documentPart, element, context);
                     if (ElementHasBlockChildren(element.Parent, context))
                     {
                         XElement para = new XElement(W.p, GetParagraphPropertiesForImage(), wmlImage);
@@ -940,16 +889,16 @@ namespace OpenXmlPowerTools.HtmlToWml
                 }
 
                 if (element.Name == XhtmlNoNamespace.li)
-                    return GenerateNextExpected(element, context, null, NextExpected.Paragraph, false);
+                    return GenerateNextExpected(documentPart, element, context, null, NextExpected.Paragraph, false);
 
                 if (element.Name == XhtmlNoNamespace.ol)
-                    return TransformChildren(element, context, NextExpected.Paragraph, preserveWhiteSpace);
+                    return TransformChildren(documentPart, element, context, NextExpected.Paragraph, preserveWhiteSpace);
 
                 if (element.Name == XhtmlNoNamespace.p)
-                    return GenerateNextExpected(element, context, null, NextExpected.Paragraph, false);
+                    return GenerateNextExpected(documentPart, element, context, null, NextExpected.Paragraph, false);
 
                 if (element.Name == XhtmlNoNamespace.s)
-                    return TransformChildren(element, context, nextExpected, preserveWhiteSpace);
+                    return TransformChildren(documentPart, element, context, nextExpected, preserveWhiteSpace);
 
                 /****************************************** SharePoint Specific ********************************************/
                 // todo sharepoint specific
@@ -968,36 +917,36 @@ namespace OpenXmlPowerTools.HtmlToWml
                 /****************************************** End SharePoint Specific ********************************************/
 
                 if (element.Name == XhtmlNoNamespace.span)
-                    return TransformRunElement(element, context, preserveWhiteSpace);
+                    return TransformRunElement(documentPart, element, context, preserveWhiteSpace);
 
                 if (element.Name == XhtmlNoNamespace.strong)
-                    return TransformRunElement(element, context, preserveWhiteSpace);
+                    return TransformRunElement(documentPart, element, context, preserveWhiteSpace);
 
                 if (element.Name == XhtmlNoNamespace.style)
                     return null;
 
                 if (element.Name == XhtmlNoNamespace.sub)
-                    return TransformRunElement(element, context, preserveWhiteSpace);
+                    return TransformRunElement(documentPart, element, context, preserveWhiteSpace);
 
                 if (element.Name == XhtmlNoNamespace.sup)
-                    return TransformRunElement(element, context, preserveWhiteSpace);
+                    return TransformRunElement(documentPart, element, context, preserveWhiteSpace);
 
                 if (element.Name == XhtmlNoNamespace.table)
                 {
                     XElement wmlTable = new XElement(W.tbl,
                         GetTableProperties(element),
                         GetTableGrid(element, context.ConversionSettings),
-                        TransformChildren(element, context, NextExpected.Paragraph, preserveWhiteSpace));
+                        TransformChildren(documentPart, element, context, NextExpected.Paragraph, preserveWhiteSpace));
                     return wmlTable;
                 }
 
                 if (element.Name == XhtmlNoNamespace.tbody)
-                    return TransformChildren(element, context, NextExpected.Paragraph, preserveWhiteSpace);
+                    return TransformChildren(documentPart, element, context, NextExpected.Paragraph, preserveWhiteSpace);
 
                 if (element.Name == XhtmlNoNamespace.td)
                 {
                     var descendantNodesHaveText = element.DescendantNodes().OfType<XText>().Any(t => !string.IsNullOrWhiteSpace(t.Value));
-                    var children = TransformChildren(element, context, NextExpected.Paragraph, preserveWhiteSpace);
+                    var children = TransformChildren(documentPart, element, context, NextExpected.Paragraph, preserveWhiteSpace);
 
                     if (ElementHasBlockChildren(element, context))
                     {
@@ -1038,21 +987,21 @@ namespace OpenXmlPowerTools.HtmlToWml
                 {
                     return new XElement(W.tc,
                         GetCellHeaderProperties(element),
-                        TransformChildren(element, context, nextExpected, preserveWhiteSpace));
+                        TransformChildren(documentPart, element, context, nextExpected, preserveWhiteSpace));
                 }
 
                 if (element.Name == XhtmlNoNamespace.tr)
                 {
                     return new XElement(W.tr,
                         GetTableRowProperties(element),
-                        TransformChildren(element, context, nextExpected, preserveWhiteSpace));
+                        TransformChildren(documentPart, element, context, nextExpected, preserveWhiteSpace));
                 }
 
                 if (element.Name == XhtmlNoNamespace.u)
-                    return TransformRunElement(element, context, preserveWhiteSpace);
+                    return TransformRunElement(documentPart, element, context, preserveWhiteSpace);
 
                 if (element.Name == XhtmlNoNamespace.ul)
-                    return TransformChildren(element, context, nextExpected, preserveWhiteSpace);
+                    return TransformChildren(documentPart, element, context, nextExpected, preserveWhiteSpace);
 
                 if (element.Name == XhtmlNoNamespace.br)
                     if (GetNextExpected(element, nextExpected, context) == NextExpected.Paragraph)
@@ -1065,28 +1014,28 @@ namespace OpenXmlPowerTools.HtmlToWml
                     }
 
                 if (element.Name == XhtmlNoNamespace.tt || element.Name == XhtmlNoNamespace.code || element.Name == XhtmlNoNamespace.kbd || element.Name == XhtmlNoNamespace.samp)
-                    return TransformRunElement(element, context, preserveWhiteSpace);
+                    return TransformRunElement(documentPart, element, context, preserveWhiteSpace);
 
                 if (element.Name == XhtmlNoNamespace.pre)
-                    return GenerateNextExpected(element, context, null, NextExpected.Paragraph, true);
+                    return GenerateNextExpected(documentPart, element, context, null, NextExpected.Paragraph, true);
 
                 // if no match up to this point, then just recursively process descendants
-                return TransformChildren(element, context, nextExpected, preserveWhiteSpace);
+                return TransformChildren(documentPart, element, context, nextExpected, preserveWhiteSpace);
             }
 
             if (node.Parent.Name != XhtmlNoNamespace.title)
-                return GenerateNextExpected(node, context, null, GetNextExpected(node, nextExpected, context), preserveWhiteSpace);
+                return GenerateNextExpected(documentPart, node, context, null, GetNextExpected(node, nextExpected, context), preserveWhiteSpace);
 
             return null;
         }
 
-        private static IEnumerable<object> TransformChildren(XElement element,  ConversionContext context, NextExpected nextExpected, bool preserveWhiteSpace)
+        private static IEnumerable<object> TransformChildren(IOpenXMLDocumentPartWrapper documentPart, XElement element,  HtmlToWmlConverterContext context, NextExpected nextExpected, bool preserveWhiteSpace)
         {
-            var transformedChildren = element.Nodes().Select(n => Transform(n, context, nextExpected, preserveWhiteSpace)).ToList();
+            var transformedChildren = element.Nodes().Select(n => Transform(documentPart, n, context, nextExpected, preserveWhiteSpace)).ToList();
             return transformedChildren;
         }
 
-        private static object TransformRunElement(XElement element, ConversionContext context, bool preserveWhiteSpace)
+        private static object TransformRunElement(IOpenXMLDocumentPartWrapper documentPart, XElement element, HtmlToWmlConverterContext context, bool preserveWhiteSpace)
         {
             var calculatedNextExpected = GetNextExpected(element, NextExpected.SubRun, context);
             bool hasBlockChildren = element.Nodes().OfType<XElement>().Any(n => GetNextExpected(n, NextExpected.SubRun, context) == NextExpected.Paragraph);
@@ -1096,9 +1045,9 @@ namespace OpenXmlPowerTools.HtmlToWml
 
             IEnumerable<object> processedRunNodes = null;
             if (putChildrenInsideAParagraph)
-                processedRunNodes = TransformChildren(element, context, NextExpected.SubRun, preserveWhiteSpace);
+                processedRunNodes = TransformChildren(documentPart, element, context, NextExpected.SubRun, preserveWhiteSpace);
             else
-                processedRunNodes = TransformChildren(element, context, calculatedNextExpected, preserveWhiteSpace);
+                processedRunNodes = TransformChildren(documentPart, element, context, calculatedNextExpected, preserveWhiteSpace);
 
             if (processedRunNodes == null)
                 return null;
@@ -1115,7 +1064,7 @@ namespace OpenXmlPowerTools.HtmlToWml
                         firstChild.Add(new XAttribute(PtOpenXml.HtmlToWmlCssWidth, (string)widthCSSProperty));
                     var rFontsLocal = firstChild.Element(W.rFonts);
                     XElement rFontsGlobal = null;
-                    var styleDefPart = context.WordDocument.MainDocumentPart.StyleDefinitionsPart;
+                    var styleDefPart = documentPart.StyleDefinitionsPart;
                     if (styleDefPart != null)
                     {
                         rFontsGlobal = styleDefPart.GetXDocument().Root.Elements(W.docDefaults).Elements(W.rPrDefault).Elements(W.rPr).Elements(W.rFonts).FirstOrDefault();
@@ -1138,7 +1087,7 @@ namespace OpenXmlPowerTools.HtmlToWml
                 return processedRunNodes;
         }
 
-        private static NextExpected GetNextExpected(XNode element, NextExpected nextExpected, ConversionContext context)
+        private static NextExpected GetNextExpected(XNode element, NextExpected nextExpected, HtmlToWmlConverterContext context)
         {
             if (element == null)
                 return nextExpected;
@@ -1149,7 +1098,7 @@ namespace OpenXmlPowerTools.HtmlToWml
 
         }
 
-        private static bool ElementHasBlockChildren(XNode node, ConversionContext context)
+        private static bool ElementHasBlockChildren(XNode node, HtmlToWmlConverterContext context)
         {
             XElement element = node as XElement;
             if (element == null)
@@ -2348,7 +2297,7 @@ namespace OpenXmlPowerTools.HtmlToWml
             return NextRectId++;
         }
 
-        private static object GenerateNextExpected(XNode node, ConversionContext context,
+        private static object GenerateNextExpected(IOpenXMLDocumentPartWrapper documentPart, XNode node, HtmlToWmlConverterContext context,
             string styleName, NextExpected nextExpected, bool preserveWhiteSpace)
         {
             if (nextExpected == NextExpected.Paragraph)
@@ -2356,7 +2305,7 @@ namespace OpenXmlPowerTools.HtmlToWml
                 XElement element = node as XElement;
                 if (element != null)
                 {
-                    var children = TransformChildren(element, context, NextExpected.Run, preserveWhiteSpace);
+                    var children = TransformChildren(documentPart, element, context, NextExpected.Run, preserveWhiteSpace);
                     var leveledChildrenElements = new XElement("dummy", children).Elements().ToList();
                     var firstParagraphProperties = GetParagraphProperties(element, styleName, context.ConversionSettings);
 
@@ -2403,7 +2352,7 @@ namespace OpenXmlPowerTools.HtmlToWml
                 XText textNode = null;
                 if (element != null)
                 {
-                    return TransformChildren(element, context, nextExpected, preserveWhiteSpace);
+                    return TransformChildren(documentPart, element, context, nextExpected, preserveWhiteSpace);
                 }
                 else if ((textNode = node as XText) != null)
                 {
@@ -2421,10 +2370,10 @@ namespace OpenXmlPowerTools.HtmlToWml
             }
         }
 
-        private static string AddImageToDocumentParts(WordprocessingDocument wDoc, IBitmapImageData image)
+        private static string AddImageToDocumentParts(IOpenXMLDocumentPartWrapper documentPart, IBitmapImageData image)
         {
             string rId = "R" + Guid.NewGuid().ToString().Replace("-", "");
-            ImagePart newPart = wDoc.MainDocumentPart.AddImagePart(image.ImageType, rId);
+            ImagePart newPart = documentPart.AddImagePart(image.ImageType, rId);
             using (Stream s = newPart.GetStream(FileMode.Create, FileAccess.ReadWrite))
                 s.Write(image.ImageBytes, 0, image.ImageBytes.GetUpperBound(0) + 1);
             return rId;
@@ -2459,13 +2408,13 @@ namespace OpenXmlPowerTools.HtmlToWml
             }
         }
 
-        private static XElement TransformImageToWml(XElement element, ConversionContext context)
+        private static XElement TransformImageToWml(IOpenXMLDocumentPartWrapper documentPart, XElement element, HtmlToWmlConverterContext context)
         {
             IBitmapImageData image = LoadImageData((string)element.Attribute(XhtmlNoNamespace.src), context.ConversionSettings);
             if (image == null)
                 return null;
 
-            string imageResourceId = AddImageToDocumentParts(context.WordDocument, image);
+            string imageResourceId = AddImageToDocumentParts(documentPart, image);
 
             PictureId pid = context.WordDocument.Annotation<PictureId>();
             if (pid == null)
@@ -2501,7 +2450,7 @@ namespace OpenXmlPowerTools.HtmlToWml
             return null;
         }
 
-        private static XElement GetImageAsInline(XElement element, ConversionContext context, IBitmapImageData bmp,
+        private static XElement GetImageAsInline(XElement element, HtmlToWmlConverterContext context, IBitmapImageData bmp,
             string rId, int pictureId, string pictureDescription)
         {
             XElement inline = new XElement(WP.inline, // 20.4.2.8
@@ -2518,7 +2467,7 @@ namespace OpenXmlPowerTools.HtmlToWml
             return inline;
         }
 
-        private static XElement GetImageAsAnchor(XElement element, ConversionContext context, IBitmapImageData bmp,
+        private static XElement GetImageAsAnchor(XElement element, HtmlToWmlConverterContext context, IBitmapImageData bmp,
             string rId, string floatValue, int pictureId, string pictureDescription)
         {
             Emu minDistFromEdge = (long)(0.125 * Emu.s_EmusPerInch);
