@@ -1086,7 +1086,6 @@ namespace OpenXmlPowerTools.HtmlToWml
 
 				if (element.Name == XhtmlNoNamespace.td)
 				{
-					var descendantNodesHaveText = element.DescendantNodes().OfType<XText>().Any(t => !string.IsNullOrWhiteSpace(t.Value));
 					var children = TransformChildren(documentPart, element, context, NextExpected.Run, preserveWhiteSpace);
 
 					if (ElementHasBlockChildren(element, context))
@@ -1113,7 +1112,7 @@ namespace OpenXmlPowerTools.HtmlToWml
 					XElement p = null;
 					var paragraphProperties = GetParagraphProperties(element, null, context.ConversionSettings);
 
-					if (descendantNodesHaveText)
+                    if (children != null && children.Any())
 						p = new XElement(W.p, paragraphProperties, children);
 					else
 					{
@@ -1209,7 +1208,7 @@ namespace OpenXmlPowerTools.HtmlToWml
 						firstChild.Add(new XAttribute(PtOpenXml.HtmlToWmlCssWidth, (string)widthCSSProperty));
 					var rFontsLocal = firstChild.Element(W.rFonts);
 					XElement rFontsGlobal = null;
-					var styleDefPart = documentPart.StyleDefinitionsPart;
+					var styleDefPart = context.WordDocument.MainDocumentPart.StyleDefinitionsPart;
 					if (styleDefPart != null)
 					{
 						rFontsGlobal = styleDefPart.GetXDocument().Root.Elements(W.docDefaults).Elements(W.rPrDefault).Elements(W.rPr).Elements(W.rFonts).FirstOrDefault();
@@ -1266,6 +1265,7 @@ namespace OpenXmlPowerTools.HtmlToWml
 					|| d.Name == XhtmlNoNamespace.sub || d.Name == XhtmlNoNamespace.sup
                     || d.Name == XhtmlNoNamespace.tt || d.Name == XhtmlNoNamespace.code || d.Name == XhtmlNoNamespace.kbd 
                     || d.Name == XhtmlNoNamespace.samp || d.Name == XhtmlNoNamespace.var
+                    || (d.Name == XhtmlNoNamespace.img && !TransformImageAsAnchor(d))
                     || d.Name.ToString().StartsWith(OpenXMLCustomHtmlFieldsPrefix);
 		}
 
@@ -2593,6 +2593,17 @@ namespace OpenXmlPowerTools.HtmlToWml
 			}
 		}
 
+        private static bool TransformImageAsAnchor(XElement element)
+        {
+            string floatValue = element.GetProp("float").ToString();
+            return TransformImageAsAnchor(floatValue);
+        }
+
+        private static bool TransformImageAsAnchor(string floatValue)
+        {
+            return floatValue == "left" || floatValue == "right";
+        }
+
 		private static XElement TransformImageToWml(IOpenXMLDocumentPartWrapper documentPart, XElement element, HtmlToWmlConverterContext context)
 		{
 			IBitmapImageData image = LoadImageData((string)element.Attribute(XhtmlNoNamespace.src), context.ConversionSettings);
@@ -2616,7 +2627,15 @@ namespace OpenXmlPowerTools.HtmlToWml
 			string pictureDescription = "Picture " + pictureId.ToString();
 
 			string floatValue = element.GetProp("float").ToString();
-			if (floatValue == "none")
+            if (TransformImageAsAnchor(floatValue))
+            {
+                XElement run = new XElement(W.r,
+                    GetRunPropertiesForImage(),
+                    new XElement(W.drawing,
+                        GetImageAsAnchor(element, context, image, imageResourceId, floatValue, pictureId, pictureDescription)));
+                return run;
+            }
+			else
 			{
 				XElement run = new XElement(W.r,
 					GetRunPropertiesForImage(),
@@ -2624,15 +2643,6 @@ namespace OpenXmlPowerTools.HtmlToWml
 						GetImageAsInline(element, context, image, imageResourceId, pictureId, pictureDescription)));
 				return run;
 			}
-			if (floatValue == "left" || floatValue == "right")
-			{
-				XElement run = new XElement(W.r,
-					GetRunPropertiesForImage(),
-					new XElement(W.drawing,
-						GetImageAsAnchor(element, context, image, imageResourceId, floatValue, pictureId, pictureDescription)));
-				return run;
-			}
-			return null;
 		}
 
 		private static XElement GetImageAsInline(XElement element, HtmlToWmlConverterContext context, IBitmapImageData bmp,

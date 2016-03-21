@@ -21,7 +21,6 @@ namespace OpenXmlPowerTools.HtmlToWml
         IEnumerable<ImagePart> ImageParts { get; }
         ImagePart AddImagePart(ImagePartType partType, string id);
         HyperlinkRelationship AddHyperlinkRelationship(Uri hyperlinkUri, bool isExternal, string id);
-        StyleDefinitionsPart StyleDefinitionsPart { get; }
     }
 
     internal class OpenXMLDocumentPartWrapper : IOpenXMLDocumentPartWrapper
@@ -37,7 +36,6 @@ namespace OpenXmlPowerTools.HtmlToWml
         {
             return this.documentPart.AddImagePart(partType, id);
         }
-        public StyleDefinitionsPart StyleDefinitionsPart { get { return this.documentPart.StyleDefinitionsPart; }  }
         public HyperlinkRelationship AddHyperlinkRelationship(Uri hyperlinkUri, bool isExternal, string id)
         {
             return this.documentPart.AddHyperlinkRelationship(hyperlinkUri, isExternal, id);

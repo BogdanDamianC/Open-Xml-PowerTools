@@ -401,8 +401,8 @@ namespace OpenXmlPowerTools.HtmlToWml
                 Inherits = true,
                 Includes = (e, settings) =>
                 {
-                    var display = GetComputedPropertyValue(null, e, "display", settings);
-                    if (display.ToString() == "block")
+                    var display = GetComputedPropertyValue(null, e, "display", settings).ToString();
+                    if (display == "block" || display == "table-cell")
                         return true;
                     return false;
                 },
