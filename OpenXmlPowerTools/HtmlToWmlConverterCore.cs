@@ -201,8 +201,16 @@ namespace OpenXmlPowerTools.HtmlToWml
 					ConvertMainDocumentPart(bodyxhtml, context, defaultCss, authorCss, userCss, annotatedHtmlDumpFileName);
 					if(headerFooterContent != null)
 					{
+                        int headerCount = 1;
+                        int footerCount = 1;
 						foreach(var hf in headerFooterContent)
-							ConvertHeaderFooterDocumentPart(hf, context, defaultCss, authorCss, userCss);
+                        {
+                            if (hf.Type == HeaderFooterContentType.Header)
+                                ConvertHeaderFooterDocumentPart(headerCount++, hf, context, defaultCss, authorCss, userCss);
+                            else
+                                ConvertHeaderFooterDocumentPart(footerCount++, hf, context, defaultCss, authorCss, userCss);
+                        }
+							
 					}
 				}
 				newWmlDocument = streamDoc.GetModifiedWmlDocument();
@@ -404,7 +412,7 @@ namespace OpenXmlPowerTools.HtmlToWml
 			context.WordDocument.MainDocumentPart.PutXDocument(xDoc);
 		}
 
-		private static void ConvertHeaderFooterDocumentPart(HeaderFooterContent headerfooterContent, HtmlToWmlConverterContext context, string defaultCss, string authorCss, string userCss)
+		private static void ConvertHeaderFooterDocumentPart(int id, HeaderFooterContent headerfooterContent, HtmlToWmlConverterContext context, string defaultCss, string authorCss, string userCss)
 		{
 			CssDocument defaultCssDoc, userCssDoc, authorCssDoc;
 			var xhtmlContent = PrepareForProcessing(headerfooterContent.XHtmlContent);
@@ -417,7 +425,7 @@ namespace OpenXmlPowerTools.HtmlToWml
 			OpenXMLDocumentPartWrapper documentPart;
 			XElement body;
 			OpenXmlPart newDocumentPart;
-			XName newElementName;
+			XName newElementReferenceName;
 			if(headerfooterContent.Type == HeaderFooterContentType.Header)
 			{
 				xDoc = XDocument.Parse(@"<?xml version='1.0' encoding='utf-8' standalone='yes'?>
@@ -438,8 +446,8 @@ namespace OpenXmlPowerTools.HtmlToWml
 						   xmlns:wne='http://schemas.microsoft.com/office/word/2006/wordml'
 						   xmlns:wps='http://schemas.microsoft.com/office/word/2010/wordprocessingShape'
 						   mc:Ignorable='w14 w15 wp14' />");
-				newDocumentPart = context.WordDocument.MainDocumentPart.AddNewPart<HeaderPart>();
-				newElementName = W.headerReference;
+                newDocumentPart = context.WordDocument.MainDocumentPart.AddNewPart<HeaderPart>("header" + id);
+				newElementReferenceName = W.headerReference;
 			}
 			else
 			{
@@ -461,8 +469,8 @@ namespace OpenXmlPowerTools.HtmlToWml
 						   xmlns:wne='http://schemas.microsoft.com/office/word/2006/wordml'
 						   xmlns:wps='http://schemas.microsoft.com/office/word/2010/wordprocessingShape'
 						   mc:Ignorable='w14 w15 wp14' />");
-				newDocumentPart = context.WordDocument.MainDocumentPart.AddNewPart<FooterPart>();
-				newElementName = W.footerReference;
+                newDocumentPart = context.WordDocument.MainDocumentPart.AddNewPart<FooterPart>("footer" + id);
+				newElementReferenceName = W.footerReference;
 			}
 
 			documentPart = new OpenXMLDocumentPartWrapper(newDocumentPart);
@@ -474,7 +482,7 @@ namespace OpenXmlPowerTools.HtmlToWml
 			var sections = allDocument.Descendants(W.sectPr).ToList();
 			foreach (var section in sections)
 			{
-				var referenceToAdd = new XElement(newElementName,
+				var referenceToAdd = new XElement(newElementReferenceName,
 					new XAttribute(W.type, headerfooterContent.GetLocationOpenXMLName()),
 					new XAttribute(R.id, newDocumentPartId));
 				section.AddFirst(referenceToAdd);
@@ -1277,21 +1285,30 @@ namespace OpenXmlPowerTools.HtmlToWml
 			{ "title", "TITLE" }
 		};
 
+        private static Dictionary<string, string> OpenXMLCustomHtmlFieldsDefaultValues = new Dictionary<string, string>()
+		{
+			{ "currentpageno", "1" },
+			{ "numberofpages", "1" },
+			{ "title", " " }
+		};
+
         private static object TransformOpenXMLCustomHtmlField(XElement element, HtmlToWmlConverterContext context, NextExpected nextExpected)
         {
             string name = element.Name.ToString();
             if (!name.StartsWith(OpenXMLCustomHtmlFieldsPrefix))
                 return null;
+            string openXMLFieldKey = name.Substring(OpenXMLCustomHtmlFieldsPrefix.Length);
             string openXMLFieldName = null;
-            if (!OpenXMLCustomHtmlFields.TryGetValue(name.Substring(OpenXMLCustomHtmlFieldsPrefix.Length), out openXMLFieldName))
+            if (!OpenXMLCustomHtmlFields.TryGetValue(openXMLFieldKey, out openXMLFieldName))
                 return null;
 
             XElement hr = XElement.Parse(string.Format(
                     @"<w:p xmlns:w='http://schemas.openxmlformats.org/wordprocessingml/2006/main'>
 						<w:r><w:fldChar w:fldCharType='begin'/></w:r>
-						<w:r><w:instrText> {0} </w:instrText></w:r>
-						<w:r><w:fldChar w:fldCharType='separate'/></w:r>
-						<w:r><w:fldChar w:fldCharType='end'/></w:r></w:p>", openXMLFieldName));
+						<w:r><w:instrText>{0}</w:instrText></w:r>
+                        <w:r><w:fldChar w:fldCharType='separate'/></w:r>
+                        <w:r><w:t>{1}</w:t></w:r>
+						<w:r><w:fldChar w:fldCharType='end'/></w:r></w:p>", openXMLFieldName, OpenXMLCustomHtmlFieldsDefaultValues[openXMLFieldKey]));
 
             if (GetNextExpected(element, nextExpected, context) == NextExpected.Paragraph)
             {
