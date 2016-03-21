@@ -835,14 +835,15 @@ namespace OpenXmlPowerTools.HtmlToWml
 					{
 						cssWidth = cssWidth.Substring(0, cssWidth.Length - 2);
 						decimal cssWidthInDecimal;
-						if (decimal.TryParse(cssWidth, out cssWidthInDecimal))
-						{
-							decimal cssWidthInPixels = (cssWidthInDecimal / 72) * 96;
-							// calculate the number of non-breaking spaces to add
-							var numberOfNpSpToAdd = (cssWidthInPixels - pixWidth) / nbSpWidth;
-							// then add them.
-							run.Add(new XElement(W.t, "".PadRight((int)numberOfNpSpToAdd, '\u00a0')));
-						}
+                        if (decimal.TryParse(cssWidth, out cssWidthInDecimal))
+                        {
+                            decimal cssWidthInPixels = (cssWidthInDecimal / 72) * 96;
+                            // calculate the number of non-breaking spaces to add
+                            var numberOfNpSpToAdd = (cssWidthInPixels - pixWidth) / nbSpWidth;
+                            // then add them.
+                            if (numberOfNpSpToAdd > 0)
+                                run.Add(new XElement(W.t, "".PadRight((int)numberOfNpSpToAdd, '\u00a0')));
+                        }
 					}
 				}
 			}
@@ -1038,7 +1039,7 @@ namespace OpenXmlPowerTools.HtmlToWml
 					return GenerateNextExpected(documentPart, element, context, null, NextExpected.Paragraph, false);
 
 				if (element.Name == XhtmlNoNamespace.s)
-					return TransformChildren(documentPart, element, context, nextExpected, preserveWhiteSpace);
+                    return TransformRunElement(documentPart, element, context, preserveWhiteSpace);
 
 				/****************************************** SharePoint Specific ********************************************/
 				// todo sharepoint specific
@@ -1153,7 +1154,7 @@ namespace OpenXmlPowerTools.HtmlToWml
 						return new XElement(W.r, new XElement(W.br));
 					}
 
-				if (element.Name == XhtmlNoNamespace.tt || element.Name == XhtmlNoNamespace.code || element.Name == XhtmlNoNamespace.kbd || element.Name == XhtmlNoNamespace.samp)
+                if (element.Name == XhtmlNoNamespace.tt || element.Name == XhtmlNoNamespace.code || element.Name == XhtmlNoNamespace.kbd || element.Name == XhtmlNoNamespace.samp || element.Name == XhtmlNoNamespace.var)
 					return TransformRunElement(documentPart, element, context, preserveWhiteSpace);
 
 				if (element.Name == XhtmlNoNamespace.pre)
@@ -1260,9 +1261,12 @@ namespace OpenXmlPowerTools.HtmlToWml
 			return d.Name == XhtmlNoNamespace.span
 					|| d.Name == XhtmlNoNamespace.strong || d.Name == XhtmlNoNamespace.b
 					|| d.Name == XhtmlNoNamespace.i || d.Name == XhtmlNoNamespace.em
-					|| d.Name == XhtmlNoNamespace.u
+					|| d.Name == XhtmlNoNamespace.u || d.Name == XhtmlNoNamespace.s
 					|| d.Name == XhtmlNoNamespace.a || d.Name == XhtmlNoNamespace.blockquote
-					|| d.Name == XhtmlNoNamespace.sub || d.Name == XhtmlNoNamespace.sup || d.Name.ToString().StartsWith(OpenXMLCustomHtmlFieldsPrefix);
+					|| d.Name == XhtmlNoNamespace.sub || d.Name == XhtmlNoNamespace.sup
+                    || d.Name == XhtmlNoNamespace.tt || d.Name == XhtmlNoNamespace.code || d.Name == XhtmlNoNamespace.kbd 
+                    || d.Name == XhtmlNoNamespace.samp || d.Name == XhtmlNoNamespace.var
+                    || d.Name.ToString().StartsWith(OpenXMLCustomHtmlFieldsPrefix);
 		}
 
         private const string OpenXMLCustomHtmlFieldsPrefix = "openxmlfield";

@@ -5372,6 +5372,7 @@ namespace OpenXmlPowerTools
         public static XName kbd = "kbd";
         public static XName samp = "samp";
         public static XName pre = "pre";
+        public static XName var = "var";
     }
 
     public class InvalidOpenXmlDocumentException : Exception
