@@ -2017,10 +2017,11 @@ namespace OpenXmlPowerTools.HtmlToWml
                         }
                     }
                     var borderAttribute = element.Attribute("border");
-                    if (borderAttribute != null)
+                    int borderValue;
+                    if (borderAttribute != null && int.TryParse(borderAttribute.Value, out borderValue))
                     {
                         borderWidth = new CssExpression { Terms = new List<CssTerm> { new CssTerm() { Type = CssTermType.Number, Value = borderAttribute.Value, Unit = CssUnit.PX } } };
-                        if(borderStyle == null)
+                        if (borderValue > 0 && borderStyle == null)
                             borderStyle = new CssExpression { Terms = new List<CssTerm> { new CssTerm { Value = "solid", Type = CssTermType.String } } };
                     }
 
