@@ -1271,8 +1271,8 @@ namespace OpenXmlPowerTools.HtmlToWml
 					|| d.Name == XhtmlNoNamespace.u || d.Name == XhtmlNoNamespace.s
 					|| d.Name == XhtmlNoNamespace.a || d.Name == XhtmlNoNamespace.blockquote
 					|| d.Name == XhtmlNoNamespace.sub || d.Name == XhtmlNoNamespace.sup
-                    || d.Name == XhtmlNoNamespace.tt || d.Name == XhtmlNoNamespace.code || d.Name == XhtmlNoNamespace.kbd 
-                    || d.Name == XhtmlNoNamespace.samp || d.Name == XhtmlNoNamespace.var
+                    || d.Name == XhtmlNoNamespace.tt || d.Name == XhtmlNoNamespace.code || d.Name == XhtmlNoNamespace.kbd
+                    || d.Name == XhtmlNoNamespace.samp || d.Name == XhtmlNoNamespace.var || d.Name == XhtmlNoNamespace.br
                     || (d.Name == XhtmlNoNamespace.img && !TransformImageAsAnchor(d))
                     || d.Name.ToString().StartsWith(OpenXMLCustomHtmlFieldsPrefix);
 		}
