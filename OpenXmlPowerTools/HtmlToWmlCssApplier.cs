@@ -890,6 +890,9 @@ namespace OpenXmlPowerTools.HtmlToWml
                 },
                 InitialValue = (element, settings) => 
                 {
+                    var widthAttribute = element.Attribute("width");
+                    if (widthAttribute != null)
+                        return new CssExpression { Terms = new List<CssTerm> { new CssTerm { Value = widthAttribute.Value.ToString(), Type = OpenXmlPowerTools.HtmlToWml.CSS.CssTermType.String, Unit = CssUnit.PX, } } };
                     if (element.Parent == null)
                     {
                         double? pageWidth = (double?)settings.SectPr.Elements(W.pgSz).Attributes(W._w).FirstOrDefault();
@@ -905,6 +908,7 @@ namespace OpenXmlPowerTools.HtmlToWml
                         return new CssExpression { Terms = new List<CssTerm> { new CssTerm { Value = width.ToString(), Type = OpenXmlPowerTools.HtmlToWml.CSS.CssTermType.String, Unit = CssUnit.PT, } } };
                     }
                     return new CssExpression { Terms = new List<CssTerm> { new CssTerm { Value = "auto", Type = OpenXmlPowerTools.HtmlToWml.CSS.CssTermType.String, } } };
+
                 },
                 ComputedValue = (element, assignedValue, settings) =>
                 {
@@ -1021,7 +1025,13 @@ namespace OpenXmlPowerTools.HtmlToWml
                         return false;
                     return true;
                 },
-                InitialValue = (element, settings) => new CssExpression { Terms = new List<CssTerm> { new CssTerm { Value = "auto", Type = OpenXmlPowerTools.HtmlToWml.CSS.CssTermType.String, } } },
+                InitialValue = (element, settings) => {
+                    var heigthAttribute = element.Attribute("height");
+                    if (heigthAttribute != null)
+                        return new CssExpression { Terms = new List<CssTerm> { new CssTerm { Value = heigthAttribute.Value.ToString(), Type = OpenXmlPowerTools.HtmlToWml.CSS.CssTermType.String, Unit = CssUnit.PX, } } };
+                    else
+                        return new CssExpression { Terms = new List<CssTerm> { new CssTerm { Value = "auto", Type = OpenXmlPowerTools.HtmlToWml.CSS.CssTermType.String, } } };
+                },
                 ComputedValue = (element, assignedValue, settings) =>
                 {
                     CssExpression valueForPercentage = null;
