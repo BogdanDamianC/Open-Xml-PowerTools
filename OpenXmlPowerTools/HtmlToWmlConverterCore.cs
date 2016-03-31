@@ -963,7 +963,7 @@ namespace OpenXmlPowerTools.HtmlToWml
 					return TransformRunElement(documentPart, element, context, preserveWhiteSpace);
 
 				if (element.Name == XhtmlNoNamespace.body)
-					return TransformChildren(documentPart, element, context, nextExpected, preserveWhiteSpace);
+                    return TransformRunElement(documentPart, element, context, preserveWhiteSpace);
 
 				if (element.Name == XhtmlNoNamespace.caption)
 				{
@@ -2862,14 +2862,25 @@ namespace OpenXmlPowerTools.HtmlToWml
 
 		private static SizeEmu GetImageSizeInEmus(XElement img, IBitmapImageData bmp)
 		{
+            CssExpression width = img.GetProp("width");
+            CssExpression maxwidth = img.GetProp("max-width");
+            CssExpression height = img.GetProp("height");
+
 			double hres = bmp.HorizontalResolution;
 			double vres = bmp.VerticalResolution;
 			Size s = bmp.Size;
 			Emu cx = (long)((double)(s.Width / hres) * (double)Emu.s_EmusPerInch);
 			Emu cy = (long)((double)(s.Height / vres) * (double)Emu.s_EmusPerInch);
 
-			CssExpression width = img.GetProp("width");
-			CssExpression maxwidth = img.GetProp("max-width");
+
+            if (width.IsAuto && height.IsNotAuto)
+            {
+                Emu heightInEmus = (Emu)height;
+                double percentChange = (double)heightInEmus / (double)cy;
+                cy = heightInEmus;
+                cx = (long)(cx * percentChange);
+            }
+			
 			if(maxwidth != null && maxwidth.IsNotAuto && maxwidth != "none")
 			{
 				if (width.IsNotAuto && (long)(Twip)maxwidth < (long)(Twip)width)
@@ -2878,7 +2889,7 @@ namespace OpenXmlPowerTools.HtmlToWml
 					width = maxwidth;
 			}
 				
-			CssExpression height = img.GetProp("height");
+			
 			if (width.IsNotAuto && height.IsAuto)
 			{
 				Emu widthInEmus = (Emu)width;
@@ -3554,19 +3565,19 @@ namespace OpenXmlPowerTools.HtmlToWml
 			return GetWidthElement(W.tcW, element);
 		}
 
-		private static XElement GetBlockContentBorders(XElement element, XName borderXName, bool forParagraph)
-		{
-			if ((element.Name == XhtmlNoNamespace.td || element.Name == XhtmlNoNamespace.th || element.Name == XhtmlNoNamespace.caption) && forParagraph)
-				return null;
-			XElement borders = new XElement(borderXName,
-				new XElement(W.top, GetBorderAttributes(element, "top")),
-				new XElement(W.left, GetBorderAttributes(element, "left")),
-				new XElement(W.bottom, GetBorderAttributes(element, "bottom")),
-				new XElement(W.right, GetBorderAttributes(element, "right")));
-			if (borders.Elements().Attributes(W.val).Where(v => (string)v == "none").Count() == 4)
-				return null;
-			return borders;
-		}
+        private static XElement GetBlockContentBorders(XElement element, XName borderXName, bool forParagraph)
+        {
+            if ((element.Name == XhtmlNoNamespace.td || element.Name == XhtmlNoNamespace.th || element.Name == XhtmlNoNamespace.caption) && forParagraph)
+                return null;
+            XElement borders = new XElement(borderXName,
+                new XElement(W.top, GetBorderAttributes(element, "top")),
+                new XElement(W.left, GetBorderAttributes(element, "left")),
+                new XElement(W.bottom, GetBorderAttributes(element, "bottom")),
+                new XElement(W.right, GetBorderAttributes(element, "right")));
+            if (borders.Elements().Attributes(W.val).Where(v => (string)v == "none").Count() == 4)
+                return null;
+            return borders;
+        }
 
 		private static Dictionary<string, string> BorderStyleMap = new Dictionary<string, string>()
 		{
