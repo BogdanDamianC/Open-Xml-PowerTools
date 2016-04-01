@@ -2860,57 +2860,46 @@ namespace OpenXmlPowerTools.HtmlToWml
 				new XElement(W.noProof));
 		}
 
+        private static SizeF adjustImageSizeToPreserveTheAspectRatio(SizeF originalSize, SizeF finalSize){
+            float ratio = originalSize.Width/originalSize.Height;
+            if(finalSize.Width/ratio > finalSize.Height) finalSize.Width = finalSize.Height*ratio;
+            else if(finalSize.Height*ratio > finalSize.Width) finalSize.Height = finalSize.Width/ratio;
+            return finalSize;
+        }
+
 		private static SizeEmu GetImageSizeInEmus(XElement img, IBitmapImageData bmp)
 		{
             CssExpression width = img.GetProp("width");
-            CssExpression maxwidth = img.GetProp("max-width");
+            CssExpression maxwidth = img.GetProp("max-width");            
             CssExpression height = img.GetProp("height");
+            CssExpression maxheight = img.GetProp("max-height");
 
 			double hres = bmp.HorizontalResolution;
 			double vres = bmp.VerticalResolution;
 			Size s = bmp.Size;
-			Emu cx = (long)((double)(s.Width / hres) * (double)Emu.s_EmusPerInch);
-			Emu cy = (long)((double)(s.Height / vres) * (double)Emu.s_EmusPerInch);
+            var imageOriginalSize = new SizeF((float)(s.Width / hres) * (float)Emu.s_EmusPerInch, (float)(s.Height / vres) * (float)Emu.s_EmusPerInch);
+            var finalSize = new SizeF(imageOriginalSize);
+
+			if(maxwidth != null && maxwidth.IsNotAuto && maxwidth != "none"
+                && ((width.IsNotAuto && (long)(Twip)maxwidth < (long)(Twip)width)
+                || (width.IsAuto && (Emu)maxwidth < imageOriginalSize.Width)))
+                finalSize.Width = (Emu)maxwidth;
+            else  if (width.IsNotAuto)
+                finalSize.Width = (Emu)width;
 
 
-            if (width.IsAuto && height.IsNotAuto)
-            {
-                Emu heightInEmus = (Emu)height;
-                double percentChange = (double)heightInEmus / (double)cy;
-                cy = heightInEmus;
-                cx = (long)(cx * percentChange);
-            }
-			
-			if(maxwidth != null && maxwidth.IsNotAuto && maxwidth != "none")
-			{
-				if (width.IsNotAuto && (long)(Twip)maxwidth < (long)(Twip)width)
-					width = maxwidth;
-				else if (width.IsAuto && (Emu)maxwidth < cx)
-					width = maxwidth;
-			}
+            if (maxheight != null && maxheight.IsNotAuto && maxheight != "none"
+                && ((height.IsNotAuto && (long)(Twip)maxheight < (long)(Twip)height)
+                    || (height.IsAuto && (Emu)maxheight < imageOriginalSize.Height)))
+                    finalSize.Height = (Emu)maxheight;
+            else if (height.IsNotAuto)
+                finalSize.Height = (Emu)height;
 				
 			
-			if (width.IsNotAuto && height.IsAuto)
-			{
-				Emu widthInEmus = (Emu)width;
-				double percentChange = (double)widthInEmus / (double)cx;
-				cx = widthInEmus;
-				cy = (long)(cy * percentChange);
-				return new SizeEmu(cx, cy);
-			}
-			if (width.IsAuto && height.IsNotAuto)
-			{
-				Emu heightInEmus = (Emu)height;
-				double percentChange = (double)heightInEmus / (double)cy;
-				cy = heightInEmus;
-				cx = (long)(cx * percentChange);
-				return new SizeEmu(cx, cy);
-			}
-			if (width.IsNotAuto && height.IsNotAuto)
-			{
-				return new SizeEmu((Emu)width, (Emu)height);
-			}
-			return new SizeEmu(cx, cy);
+            if (width.IsAuto || height.IsAuto)
+                finalSize = adjustImageSizeToPreserveTheAspectRatio(imageOriginalSize, finalSize);
+
+		    return new SizeEmu((Emu)finalSize.Width, (Emu)finalSize.Height);
 		}
 
 		private static XElement GetImageExtent(XElement img, IBitmapImageData bmp)

@@ -1083,6 +1083,8 @@ namespace OpenXmlPowerTools.HtmlToWml
                 Inherits = false,
                 Includes = (e, settings) =>
                 {
+                    if (e.Name == XhtmlNoNamespace.img)
+                        return true;
                     var display = GetComputedPropertyValue(null, e, "display", settings);
                     var dv = display.ToString();
                     if (dv == "inline" || dv == "table-column" || dv == "table-column-group")
