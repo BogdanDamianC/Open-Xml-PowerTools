@@ -2035,6 +2035,8 @@ namespace OpenXmlPowerTools.HtmlToWml
                         borderWidth = new CssExpression { Terms = new List<CssTerm> { new CssTerm() { Type = CssTermType.Number, Value = borderAttribute.Value, Unit = CssUnit.PX } } };
                         if (borderValue > 0 && borderStyle == null)
                             borderStyle = new CssExpression { Terms = new List<CssTerm> { new CssTerm { Value = "solid", Type = CssTermType.String } } };
+                        if (borderValue > 0 && borderColor == null)
+                            borderColor = new CssExpression { Terms = new List<CssTerm> { new CssTerm { Value = "black", Type = CssTermType.String } } };
                     }
 
 

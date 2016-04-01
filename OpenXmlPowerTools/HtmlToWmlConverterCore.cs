@@ -2861,6 +2861,8 @@ namespace OpenXmlPowerTools.HtmlToWml
 		}
 
         private static SizeF adjustImageSizeToPreserveTheAspectRatio(SizeF originalSize, SizeF finalSize){
+            if (originalSize.Height == 0)
+                return finalSize;
             float ratio = originalSize.Width/originalSize.Height;
             if(finalSize.Width/ratio > finalSize.Height) finalSize.Width = finalSize.Height*ratio;
             else if(finalSize.Height*ratio > finalSize.Width) finalSize.Height = finalSize.Width/ratio;
