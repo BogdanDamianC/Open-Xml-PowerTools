@@ -892,7 +892,12 @@ namespace OpenXmlPowerTools.HtmlToWml
                 {
                     var widthAttribute = element.Attribute("width");
                     if (widthAttribute != null)
-                        return new CssExpression { Terms = new List<CssTerm> { new CssTerm { Value = widthAttribute.Value.ToString(), Type = OpenXmlPowerTools.HtmlToWml.CSS.CssTermType.String, Unit = CssUnit.PX, } } };
+                    {
+                        var expression = GetCssTermForSizeAttribute(widthAttribute.Value);
+                        if(expression != null)
+                            return expression;
+                    }
+                        
                     if (element.Parent == null)
                     {
                         double? pageWidth = (double?)settings.SectPr.Elements(W.pgSz).Attributes(W._w).FirstOrDefault();
@@ -1027,10 +1032,12 @@ namespace OpenXmlPowerTools.HtmlToWml
                 },
                 InitialValue = (element, settings) => {
                     var heigthAttribute = element.Attribute("height");
-                    if (heigthAttribute != null)
-                        return new CssExpression { Terms = new List<CssTerm> { new CssTerm { Value = heigthAttribute.Value.ToString(), Type = OpenXmlPowerTools.HtmlToWml.CSS.CssTermType.String, Unit = CssUnit.PX, } } };
-                    else
-                        return new CssExpression { Terms = new List<CssTerm> { new CssTerm { Value = "auto", Type = OpenXmlPowerTools.HtmlToWml.CSS.CssTermType.String, } } };
+                    if (heigthAttribute != null){
+                        var expression = GetCssTermForSizeAttribute(heigthAttribute.Value);
+                        if(expression != null)
+                            return expression;
+                    }
+                    return new CssExpression { Terms = new List<CssTerm> { new CssTerm { Value = "auto", Type = OpenXmlPowerTools.HtmlToWml.CSS.CssTermType.String, } } };
                 },
                 ComputedValue = (element, assignedValue, settings) =>
                 {
@@ -3109,6 +3116,27 @@ namespace OpenXmlPowerTools.HtmlToWml
         private static string ConvertSingleDigit(string singleDigit)
         {
             return singleDigit + singleDigit;
+        }
+
+        private static CssExpression GetCssTermForSizeAttribute(string attribute){
+             StringBuilder numberPart= new StringBuilder(), unit = new StringBuilder();
+             foreach(char c in attribute)
+                 if(char.IsDigit(c) && unit.Length == 0)
+                     numberPart.Append(c);
+                 else if(char.IsLetter(c))
+                     unit.Append(c);
+            if(numberPart.Length == 0)
+                return null;
+
+            if(unit.Length == 0)
+                return new CssExpression { Terms = new List<CssTerm> { new CssTerm { Value = attribute, Type = OpenXmlPowerTools.HtmlToWml.CSS.CssTermType.String, Unit = CssUnit.PX } } };
+            else
+            {
+                CssUnit cssunit;
+                if(!Enum.TryParse<CssUnit>(unit.ToString(), true, out cssunit))
+                    cssunit = CssUnit.PX;
+                return new CssExpression { Terms = new List<CssTerm> { new CssTerm { Value = numberPart.ToString(), Type = OpenXmlPowerTools.HtmlToWml.CSS.CssTermType.String, Unit = cssunit } } };
+            }
         }
     }
 }

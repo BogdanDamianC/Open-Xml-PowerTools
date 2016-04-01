@@ -303,7 +303,8 @@ namespace OxPt
         [InlineData("T1851_P_max-width_headerandfooter.html", "THeader.html", "TFooter.html")]
         [InlineData("T1852_P_max-width-percentages_headerandfooter.html", "THeader.html", "TFooter.html")]
         [InlineData("T1853_var_tag_headerandfooter.html", "THeader.html", "TFooter.html")]
-
+        [InlineData("T1854_image-with-size-attributes.html", "THeader.html", "TFooter.html")]
+        
         public void HW001(string name, string header, string footer)
         {
 #if false
