@@ -2881,24 +2881,29 @@ namespace OpenXmlPowerTools.HtmlToWml
 			Size s = bmp.Size;
             var imageOriginalSize = new SizeF((float)(s.Width / hres) * (float)Emu.s_EmusPerInch, (float)(s.Height / vres) * (float)Emu.s_EmusPerInch);
             var finalSize = new SizeF(imageOriginalSize);
-
-			if(maxwidth != null && maxwidth.IsNotAuto && maxwidth != "none"
+            bool maxUsed = false;
+            if (maxwidth != null && maxwidth.IsNotAuto && maxwidth != "none"
                 && ((width.IsNotAuto && (long)(Twip)maxwidth < (long)(Twip)width)
                 || (width.IsAuto && (Emu)maxwidth < imageOriginalSize.Width)))
+            {
                 finalSize.Width = (Emu)maxwidth;
-            else  if (width.IsNotAuto)
+                maxUsed = true;
+            }
+            else if (width.IsNotAuto)
                 finalSize.Width = (Emu)width;
 
 
             if (maxheight != null && maxheight.IsNotAuto && maxheight != "none"
                 && ((height.IsNotAuto && (long)(Twip)maxheight < (long)(Twip)height)
                     || (height.IsAuto && (Emu)maxheight < imageOriginalSize.Height)))
-                    finalSize.Height = (Emu)maxheight;
+            {
+                finalSize.Height = (Emu)maxheight;
+                maxUsed = true;
+            }
             else if (height.IsNotAuto)
                 finalSize.Height = (Emu)height;
-				
-			
-            if (width.IsAuto || height.IsAuto)
+
+            if (maxUsed || width.IsAuto || height.IsAuto)
                 finalSize = adjustImageSizeToPreserveTheAspectRatio(imageOriginalSize, finalSize);
 
 		    return new SizeEmu((Emu)finalSize.Width, (Emu)finalSize.Height);
