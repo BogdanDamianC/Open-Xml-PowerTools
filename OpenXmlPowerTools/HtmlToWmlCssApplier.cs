@@ -223,13 +223,41 @@ namespace OpenXmlPowerTools.HtmlToWml
                 Inherits = true,
                 Includes = (e, settings) =>
                 {
+                    if(e.Name == "ol")
+                        return true;
                     var display = GetComputedPropertyValue(null, e, "display", settings);
                     if (display.ToString() == "list-item")
                         return true;
                     return false;
                 },
-                InitialValue = (element, settings) => new CssExpression { Terms = new List<CssTerm> { new CssTerm { Value = "disc", Type = OpenXmlPowerTools.HtmlToWml.CSS.CssTermType.String } } },
-                ComputedValue = null,
+                InitialValue = (element, settings) => {
+                    if(element.Name != "ol")
+                        return new CssExpression { Terms = new List<CssTerm> { new CssTerm { Value = "disc", Type = OpenXmlPowerTools.HtmlToWml.CSS.CssTermType.String } } };
+                    else
+                        return null;
+                },
+                ComputedValue = (element, assignedValue, settings) => {
+                    if(element.Name == "ol")
+                    {
+                        var listTypeAttribute = element.Attribute("type");
+                        if (listTypeAttribute != null)
+                        {
+                            string lstTypeVal;
+                            switch (listTypeAttribute.Value)
+                            {
+                                case "a": lstTypeVal = "lower-alpha"; break;
+                                case "A": lstTypeVal = "upper-alpha"; break;
+                                case "I": lstTypeVal = "upper-roman"; break;
+                                case "i": lstTypeVal = "lower-roman"; break;
+                                case "1": lstTypeVal = "decimal"; break;
+                                case "0": lstTypeVal = "decimal-leading-zero"; break;
+                                default: lstTypeVal = "decimal"; break;
+                            }
+                            return new CssExpression { Terms = new List<CssTerm> { new CssTerm { Value = lstTypeVal, Type = OpenXmlPowerTools.HtmlToWml.CSS.CssTermType.String } } };
+                        }
+                    }
+                    return assignedValue;
+                }
             },
 
             // list-style-image

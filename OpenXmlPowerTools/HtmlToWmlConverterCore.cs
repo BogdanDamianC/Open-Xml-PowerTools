@@ -4897,9 +4897,6 @@ namespace OpenXmlPowerTools.HtmlToWml
 			foreach (var list in numberingElements)
 			{
 				HtmlToWmlConverterCore.NumberedItemAnnotation nia = list.Annotation<HtmlToWmlConverterCore.NumberedItemAnnotation>();
-                var listItemTypeAttribute = list.Attribute(XhtmlNoNamespace.type);
-                if (listItemTypeAttribute != null)
-                    nia.listStyleType = GetNumberingPartListItemType(listItemTypeAttribute.Value);
 
                 if (!numToAbstractNum.ContainsKey(nia.numId))
 				{
@@ -4976,20 +4973,6 @@ namespace OpenXmlPowerTools.HtmlToWml
   </w:num>
 #endif
 		}
-
-        private static string GetNumberingPartListItemType(string value)
-        {
-            switch (value)
-            {
-                case "a": return "lower-alpha";
-                case "A": return "upper-alpha";
-                case "I": return "upper-roman";
-                case "i": return "lower-roman";
-                case "1": return "decimal";
-                case "0": return "decimal-leading-zero";
-                default: return "decimal";
-            }
-        }
     }
 
 	class StylesUpdater
