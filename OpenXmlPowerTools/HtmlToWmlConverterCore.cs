@@ -4897,7 +4897,11 @@ namespace OpenXmlPowerTools.HtmlToWml
 			foreach (var list in numberingElements)
 			{
 				HtmlToWmlConverterCore.NumberedItemAnnotation nia = list.Annotation<HtmlToWmlConverterCore.NumberedItemAnnotation>();
-				if (!numToAbstractNum.ContainsKey(nia.numId))
+                var listItemTypeAttribute = list.Attribute(XhtmlNoNamespace.type);
+                if (listItemTypeAttribute != null)
+                    nia.listStyleType = GetNumberingPartListItemType(listItemTypeAttribute.Value);
+
+                if (!numToAbstractNum.ContainsKey(nia.numId))
 				{
 					numToAbstractNum.Add(nia.numId, currentAbstractId);
 					if (list.Name == XhtmlNoNamespace.ul)
@@ -4915,12 +4919,10 @@ namespace OpenXmlPowerTools.HtmlToWml
 							just[i] = "left";
 							XElement itemAtLevel = numberingElements
 								.FirstOrDefault(nf =>
-								{
-									HtmlToWmlConverterCore.NumberedItemAnnotation n = nf.Annotation<HtmlToWmlConverterCore.NumberedItemAnnotation>();
-									if (n != null && n.numId == nia.numId && n.ilvl == i)
-										return true;
-									return false;
-								});
+                                {
+                                    HtmlToWmlConverterCore.NumberedItemAnnotation n = nf.Annotation<HtmlToWmlConverterCore.NumberedItemAnnotation>();
+                                    return (n != null && n.numId == nia.numId && n.ilvl == i);
+                                });
 							if (itemAtLevel != null)
 							{
 								HtmlToWmlConverterCore.NumberedItemAnnotation thisLevelNia = itemAtLevel.Annotation<HtmlToWmlConverterCore.NumberedItemAnnotation>();
@@ -4974,7 +4976,21 @@ namespace OpenXmlPowerTools.HtmlToWml
   </w:num>
 #endif
 		}
-	}
+
+        private static string GetNumberingPartListItemType(string value)
+        {
+            switch (value)
+            {
+                case "a": return "lower-alpha";
+                case "A": return "upper-alpha";
+                case "I": return "upper-roman";
+                case "i": return "lower-roman";
+                case "1": return "decimal";
+                case "0": return "decimal-leading-zero";
+                default: return "decimal";
+            }
+        }
+    }
 
 	class StylesUpdater
 	{
