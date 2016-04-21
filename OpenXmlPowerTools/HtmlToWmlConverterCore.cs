@@ -1083,7 +1083,7 @@ namespace OpenXmlPowerTools.HtmlToWml
 				if (element.Name == XhtmlNoNamespace.table)
 				{
 					XElement wmlTable = new XElement(W.tbl,
-						GetTableProperties(element),
+						GetTableProperties(element, context.ConversionSettings),
 						GetTableGrid(element, context.ConversionSettings),
 						TransformChildren(documentPart, element, context, NextExpected.Paragraph, preserveWhiteSpace));
 					return wmlTable;
@@ -3421,9 +3421,9 @@ namespace OpenXmlPowerTools.HtmlToWml
 
 		private static XElement GetJustification(XElement blockLevelElement, HtmlToWmlConverterSettings settings)
 		{
-			// Justify ******************************************************
-			CssExpression textAlignProperty = blockLevelElement.GetProp("text-align");
-			string textAlign;
+            // Justify ******************************************************
+            CssExpression textAlignProperty = CssApplier.GetComputedPropertyValue(null, blockLevelElement, "text-align", settings);
+            string textAlign;
 			if (blockLevelElement.Name == XhtmlNoNamespace.caption || blockLevelElement.Name == XhtmlNoNamespace.th)
 				textAlign = "center";
 			else
@@ -3491,7 +3491,7 @@ namespace OpenXmlPowerTools.HtmlToWml
 			return retValue;
 		}
 
-		private static XElement GetTableProperties(XElement element)
+		private static XElement GetTableProperties(XElement element, HtmlToWmlConverterSettings settings)
 		{
 
 			XElement bidiVisual = null;
@@ -3506,7 +3506,8 @@ namespace OpenXmlPowerTools.HtmlToWml
 				GetBlockContentBorders(element, W.tblBorders, false),
 				GetTableShading(element),
 				GetTableCellMargins(element),
-				GetTableLook(element));
+                GetJustification(element, settings),
+                GetTableLook(element));
 			return tblPr;
 		}
 
