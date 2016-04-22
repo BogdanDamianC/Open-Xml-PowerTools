@@ -346,6 +346,7 @@ namespace OpenXmlPowerTools.HtmlToWml
 			public int numId;
 			public int ilvl;
 			public string listStyleType;
+            public int start;
 		}
 
 		private static void AnnotateOlUl(MainDocumentPart mainDocumentPart, XElement html)
@@ -355,18 +356,20 @@ namespace OpenXmlPowerTools.HtmlToWml
 			foreach (var item in html.DescendantsAndSelf().Where(d => d.Name == XhtmlNoNamespace.ol || d.Name == XhtmlNoNamespace.ul))
 			{
 				XElement parentOlUl = item.Ancestors().Where(a => a.Name == XhtmlNoNamespace.ol || a.Name == XhtmlNoNamespace.ul).LastOrDefault();
-				int numIdToUse;
+                var nia = new NumberedItemAnnotation();
+
 				if (parentOlUl != null)
-					numIdToUse = parentOlUl.Annotation<NumberedItemAnnotation>().numId;
+                    nia.numId = parentOlUl.Annotation<NumberedItemAnnotation>().numId;
 				else
-					numIdToUse = numId++;
-				string lst = CssApplier.GetComputedPropertyValue(null, item, "list-style-type", null).ToString();
-				item.AddAnnotation(new NumberedItemAnnotation
-				{
-					numId = numIdToUse,
-					ilvl = item.Ancestors().Where(a => a.Name == XhtmlNoNamespace.ol || a.Name == XhtmlNoNamespace.ul).Count(),
-					listStyleType = lst,
-				});
+                    nia.numId = numId++;
+                nia.listStyleType = CssApplier.GetComputedPropertyValue(null, item, "list-style-type", null).ToString();
+                nia.ilvl = item.Ancestors().Count(a => a.Name == XhtmlNoNamespace.ol || a.Name == XhtmlNoNamespace.ul);
+
+                var listStartAttribute = item.Attribute("start");
+                if(listStartAttribute == null || !int.TryParse(listStartAttribute.Value, out nia.start))
+                    nia.start = 1;
+
+                item.AddAnnotation(nia);
 			}
 		}
 
@@ -4595,10 +4598,10 @@ namespace OpenXmlPowerTools.HtmlToWml
 	<w:multiLevelType w:val='multilevel'/>
 	<w:tmpl w:val='7D26959A'/>
 	<w:lvl w:ilvl='0'>
-	  <w:start w:val='1'/>
-	  <w:numFmt w:val='{1}'/>
+	  <w:start w:val='{1}'/>
+	  <w:numFmt w:val='{2}'/>
 	  <w:lvlText w:val='%1.'/>
-	  <w:lvlJc w:val='{2}'/>
+	  <w:lvlJc w:val='{3}'/>
 	  <w:pPr>
 		<w:tabs>
 		  <w:tab w:val='num'
@@ -4610,10 +4613,10 @@ namespace OpenXmlPowerTools.HtmlToWml
 	</w:lvl>
 	<w:lvl w:ilvl='1'
 		   w:tentative='1'>
-	  <w:start w:val='1'/>
-	  <w:numFmt w:val='{3}'/>
+	  <w:start w:val='{4}'/>
+	  <w:numFmt w:val='{5}'/>
 	  <w:lvlText w:val='%2.'/>
-	  <w:lvlJc w:val='{4}'/>
+	  <w:lvlJc w:val='{6}'/>
 	  <w:pPr>
 		<w:tabs>
 		  <w:tab w:val='num'
@@ -4625,10 +4628,10 @@ namespace OpenXmlPowerTools.HtmlToWml
 	</w:lvl>
 	<w:lvl w:ilvl='2'
 		   w:tentative='1'>
-	  <w:start w:val='1'/>
-	  <w:numFmt w:val='{5}'/>
+	  <w:start w:val='{7}'/>
+	  <w:numFmt w:val='{8}'/>
 	  <w:lvlText w:val='%3.'/>
-	  <w:lvlJc w:val='{6}'/>
+	  <w:lvlJc w:val='{9}'/>
 	  <w:pPr>
 		<w:tabs>
 		  <w:tab w:val='num'
@@ -4640,10 +4643,10 @@ namespace OpenXmlPowerTools.HtmlToWml
 	</w:lvl>
 	<w:lvl w:ilvl='3'
 		   w:tentative='1'>
-	  <w:start w:val='1'/>
-	  <w:numFmt w:val='{7}'/>
+	  <w:start w:val='{10}'/>
+	  <w:numFmt w:val='{11}'/>
 	  <w:lvlText w:val='%4.'/>
-	  <w:lvlJc w:val='{8}'/>
+	  <w:lvlJc w:val='{12}'/>
 	  <w:pPr>
 		<w:tabs>
 		  <w:tab w:val='num'
@@ -4655,10 +4658,10 @@ namespace OpenXmlPowerTools.HtmlToWml
 	</w:lvl>
 	<w:lvl w:ilvl='4'
 		   w:tentative='1'>
-	  <w:start w:val='1'/>
-	  <w:numFmt w:val='{9}'/>
+	  <w:start w:val='{13}'/>
+	  <w:numFmt w:val='{14}'/>
 	  <w:lvlText w:val='%5.'/>
-	  <w:lvlJc w:val='{10}'/>
+	  <w:lvlJc w:val='{15}'/>
 	  <w:pPr>
 		<w:tabs>
 		  <w:tab w:val='num'
@@ -4670,10 +4673,10 @@ namespace OpenXmlPowerTools.HtmlToWml
 	</w:lvl>
 	<w:lvl w:ilvl='5'
 		   w:tentative='1'>
-	  <w:start w:val='1'/>
-	  <w:numFmt w:val='{11}'/>
+	  <w:start w:val='{16}'/>
+	  <w:numFmt w:val='{17}'/>
 	  <w:lvlText w:val='%6.'/>
-	  <w:lvlJc w:val='{12}'/>
+	  <w:lvlJc w:val='{18}'/>
 	  <w:pPr>
 		<w:tabs>
 		  <w:tab w:val='num'
@@ -4685,10 +4688,10 @@ namespace OpenXmlPowerTools.HtmlToWml
 	</w:lvl>
 	<w:lvl w:ilvl='6'
 		   w:tentative='1'>
-	  <w:start w:val='1'/>
-	  <w:numFmt w:val='{13}'/>
+	  <w:start w:val='{19}'/>
+	  <w:numFmt w:val='{20}'/>
 	  <w:lvlText w:val='%7.'/>
-	  <w:lvlJc w:val='{14}'/>
+	  <w:lvlJc w:val='{21}'/>
 	  <w:pPr>
 		<w:tabs>
 		  <w:tab w:val='num'
@@ -4700,10 +4703,10 @@ namespace OpenXmlPowerTools.HtmlToWml
 	</w:lvl>
 	<w:lvl w:ilvl='7'
 		   w:tentative='1'>
-	  <w:start w:val='1'/>
-	  <w:numFmt w:val='{15}'/>
+	  <w:start w:val='{22}'/>
+	  <w:numFmt w:val='{23}'/>
 	  <w:lvlText w:val='%8.'/>
-	  <w:lvlJc w:val='{16}'/>
+	  <w:lvlJc w:val='{24}'/>
 	  <w:pPr>
 		<w:tabs>
 		  <w:tab w:val='num'
@@ -4715,10 +4718,10 @@ namespace OpenXmlPowerTools.HtmlToWml
 	</w:lvl>
 	<w:lvl w:ilvl='8'
 		   w:tentative='1'>
-	  <w:start w:val='1'/>
-	  <w:numFmt w:val='{17}'/>
+	  <w:start w:val='{25}'/>
+	  <w:numFmt w:val='{26}'/>
 	  <w:lvlText w:val='%9.'/>
-	  <w:lvlJc w:val='{18}'/>
+	  <w:lvlJc w:val='{27}'/>
 	  <w:pPr>
 		<w:tabs>
 		  <w:tab w:val='num'
@@ -4911,7 +4914,8 @@ namespace OpenXmlPowerTools.HtmlToWml
 					{
 						string[] numFmt = new string[9];
 						string[] just = new string[9];
-						for (int i = 0; i < numFmt.Length; ++i)
+                        int[] start = Enumerable.Repeat(1, 9).ToArray();
+                        for (int i = 0; i < numFmt.Length; ++i)
 						{
 							numFmt[i] = "decimal";
 							just[i] = "left";
@@ -4924,7 +4928,8 @@ namespace OpenXmlPowerTools.HtmlToWml
 							if (itemAtLevel != null)
 							{
 								HtmlToWmlConverterCore.NumberedItemAnnotation thisLevelNia = itemAtLevel.Annotation<HtmlToWmlConverterCore.NumberedItemAnnotation>();
-								string thisLevelNumFmt = thisLevelNia.listStyleType;
+                                start[i] = thisLevelNia.start;
+                                string thisLevelNumFmt = thisLevelNia.listStyleType;
 								if (thisLevelNumFmt == "lower-alpha" || thisLevelNumFmt == "lower-latin")
 								{
 									numFmt[i] = "lowerLetter";
@@ -4954,7 +4959,15 @@ namespace OpenXmlPowerTools.HtmlToWml
 						}
 
 						XElement simpleNumAbstract = XElement.Parse(String.Format(OrderedListAbstractXml, currentAbstractId++,
-							numFmt[0], just[0], numFmt[1], just[1], numFmt[2], just[2], numFmt[3], just[3], numFmt[4], just[4], numFmt[5], just[5], numFmt[6], just[6], numFmt[7], just[7], numFmt[8], just[8]));
+							start[0], numFmt[0], just[0],
+                            start[1], numFmt[1], just[1],
+                            start[2], numFmt[2], just[2],
+                            start[3], numFmt[3], just[3],
+                            start[4], numFmt[4], just[4],
+                            start[5], numFmt[5], just[5],
+                            start[6], numFmt[6], just[6],
+                            start[7], numFmt[7], just[7],
+                            start[8], numFmt[8], just[8]));
 						numberingXDoc.Root.Add(simpleNumAbstract);
 					}
 				}
