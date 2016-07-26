@@ -26,6 +26,7 @@ using OpenXmlPowerTools;
 using OpenXmlPowerTools.HtmlToWml;
 using OpenXmlPowerTools.HtmlToWml.CSS;
 using System.Globalization;
+using System.Drawing;
 
 #if false
 Sort:
@@ -222,13 +223,41 @@ namespace OpenXmlPowerTools.HtmlToWml
                 Inherits = true,
                 Includes = (e, settings) =>
                 {
+                    if(e.Name == "ol")
+                        return true;
                     var display = GetComputedPropertyValue(null, e, "display", settings);
                     if (display.ToString() == "list-item")
                         return true;
                     return false;
                 },
-                InitialValue = (element, settings) => new CssExpression { Terms = new List<CssTerm> { new CssTerm { Value = "disc", Type = OpenXmlPowerTools.HtmlToWml.CSS.CssTermType.String } } },
-                ComputedValue = null,
+                InitialValue = (element, settings) => {
+                    if(element.Name != "ol")
+                        return new CssExpression { Terms = new List<CssTerm> { new CssTerm { Value = "disc", Type = OpenXmlPowerTools.HtmlToWml.CSS.CssTermType.String } } };
+                    else
+                        return null;
+                },
+                ComputedValue = (element, assignedValue, settings) => {
+                    if(element.Name == "ol")
+                    {
+                        var listTypeAttribute = element.Attribute("type");
+                        if (listTypeAttribute != null)
+                        {
+                            string lstTypeVal;
+                            switch (listTypeAttribute.Value)
+                            {
+                                case "a": lstTypeVal = "lower-alpha"; break;
+                                case "A": lstTypeVal = "upper-alpha"; break;
+                                case "I": lstTypeVal = "upper-roman"; break;
+                                case "i": lstTypeVal = "lower-roman"; break;
+                                case "1": lstTypeVal = "decimal"; break;
+                                case "0": lstTypeVal = "decimal-leading-zero"; break;
+                                default: lstTypeVal = "decimal"; break;
+                            }
+                            return new CssExpression { Terms = new List<CssTerm> { new CssTerm { Value = lstTypeVal, Type = OpenXmlPowerTools.HtmlToWml.CSS.CssTermType.String } } };
+                        }
+                    }
+                    return assignedValue;
+                }
             },
 
             // list-style-image
@@ -400,8 +429,8 @@ namespace OpenXmlPowerTools.HtmlToWml
                 Inherits = true,
                 Includes = (e, settings) =>
                 {
-                    var display = GetComputedPropertyValue(null, e, "display", settings);
-                    if (display.ToString() == "block")
+                    var display = GetComputedPropertyValue(null, e, "display", settings).ToString();
+                    if (display == "block" || display == "table-cell")
                         return true;
                     return false;
                 },
@@ -889,6 +918,14 @@ namespace OpenXmlPowerTools.HtmlToWml
                 },
                 InitialValue = (element, settings) => 
                 {
+                    var widthAttribute = element.Attribute("width");
+                    if (widthAttribute != null)
+                    {
+                        var expression = GetCssTermForSizeAttribute(widthAttribute.Value);
+                        if(expression != null)
+                            return expression;
+                    }
+                        
                     if (element.Parent == null)
                     {
                         double? pageWidth = (double?)settings.SectPr.Elements(W.pgSz).Attributes(W._w).FirstOrDefault();
@@ -904,6 +941,7 @@ namespace OpenXmlPowerTools.HtmlToWml
                         return new CssExpression { Terms = new List<CssTerm> { new CssTerm { Value = width.ToString(), Type = OpenXmlPowerTools.HtmlToWml.CSS.CssTermType.String, Unit = CssUnit.PT, } } };
                     }
                     return new CssExpression { Terms = new List<CssTerm> { new CssTerm { Value = "auto", Type = OpenXmlPowerTools.HtmlToWml.CSS.CssTermType.String, } } };
+
                 },
                 ComputedValue = (element, assignedValue, settings) =>
                 {
@@ -1020,7 +1058,15 @@ namespace OpenXmlPowerTools.HtmlToWml
                         return false;
                     return true;
                 },
-                InitialValue = (element, settings) => new CssExpression { Terms = new List<CssTerm> { new CssTerm { Value = "auto", Type = OpenXmlPowerTools.HtmlToWml.CSS.CssTermType.String, } } },
+                InitialValue = (element, settings) => {
+                    var heigthAttribute = element.Attribute("height");
+                    if (heigthAttribute != null){
+                        var expression = GetCssTermForSizeAttribute(heigthAttribute.Value);
+                        if(expression != null)
+                            return expression;
+                    }
+                    return new CssExpression { Terms = new List<CssTerm> { new CssTerm { Value = "auto", Type = OpenXmlPowerTools.HtmlToWml.CSS.CssTermType.String, } } };
+                },
                 ComputedValue = (element, assignedValue, settings) =>
                 {
                     CssExpression valueForPercentage = null;
@@ -1072,6 +1118,8 @@ namespace OpenXmlPowerTools.HtmlToWml
                 Inherits = false,
                 Includes = (e, settings) =>
                 {
+                    if (e.Name == XhtmlNoNamespace.img)
+                        return true;
                     var display = GetComputedPropertyValue(null, e, "display", settings);
                     var dv = display.ToString();
                     if (dv == "inline" || dv == "table-column" || dv == "table-column-group")
@@ -1669,7 +1717,15 @@ namespace OpenXmlPowerTools.HtmlToWml
             bool attributeMatch = true;
 
             if (simpleSelector.Pseudo != null)
-                return false;
+            {
+                if (simpleSelector.Pseudo == "first-child" && element.Parent != null)
+                    return element.Parent.Elements().First() == element;
+                else if (simpleSelector.Pseudo == "last-child" && element.Parent != null)
+                    return element.Parent.Elements().Last() == element;
+                else
+                    return false;
+            }
+                
             if (simpleSelector.ElementName != null && simpleSelector.ElementName != "" && simpleSelector.ElementName != "*")
                 elemantNameMatch = element.Name.ToString() == simpleSelector.ElementName.ToString();
             if (elemantNameMatch)
@@ -2007,6 +2063,18 @@ namespace OpenXmlPowerTools.HtmlToWml
                             }
                         }
                     }
+                    var borderAttribute = element.Attribute("border");
+                    int borderValue;
+                    if (borderAttribute != null && int.TryParse(borderAttribute.Value, out borderValue))
+                    {
+                        borderWidth = new CssExpression { Terms = new List<CssTerm> { new CssTerm() { Type = CssTermType.Number, Value = borderAttribute.Value, Unit = CssUnit.PX } } };
+                        if (borderValue > 0 && borderStyle == null)
+                            borderStyle = new CssExpression { Terms = new List<CssTerm> { new CssTerm { Value = "solid", Type = CssTermType.String } } };
+                        if (borderValue > 0 && borderColor == null)
+                            borderColor = new CssExpression { Terms = new List<CssTerm> { new CssTerm { Value = "black", Type = CssTermType.String } } };
+                    }
+
+
                     foreach (var side in new[] { "top", "left", "bottom", "right" })
                     {
                         if (borderWidth != null)
@@ -3033,25 +3101,70 @@ namespace OpenXmlPowerTools.HtmlToWml
                     }
                 }
                 string value = term.Value;
-                if (value.Substring(0, 1) == "#" && value.Length == 4)
+                if (value.StartsWith("#"))                 
                 {
-                    string e = ConvertSingleDigit(value.Substring(1, 1)) +
-                        ConvertSingleDigit(value.Substring(2, 1)) +
-                        ConvertSingleDigit(value.Substring(3, 1));
-                    return e;
+                    if(value.Length == 4){
+                        string e = ConvertSingleDigit(value.Substring(1, 1)) +
+                            ConvertSingleDigit(value.Substring(2, 1)) +
+                            ConvertSingleDigit(value.Substring(3, 1));
+                        return e;
+                    }
+                    else
+                        return value.Substring(1);
                 }
-                if (value.Substring(0, 1) == "#")
-                    return value.Substring(1);
-                if (ColorMap.ContainsKey(value))
-                    return ColorMap[value];
+                    
+                if (value.Equals("inherit", StringComparison.InvariantCultureIgnoreCase)
+                    || value.Equals("transparent", StringComparison.InvariantCultureIgnoreCase))
+                    return value;
+                string tmpColor = null;
+                if (ColorMap.TryGetValue(value, out tmpColor))
+                    return tmpColor;
+                else if((tmpColor = GetHexColor(value)) != null)
+                    return tmpColor;
                 return value;
             }
             return "000000";
         }
 
+        private static string GetHexColor(string strColor)
+        {
+            try
+            {
+                var parsedColor = ColorTranslator.FromHtml(strColor);
+                if (parsedColor == null || parsedColor.IsEmpty)
+                    return null;
+                return string.Format("{0:X2}{1:X2}{2:X2}", parsedColor.R, parsedColor.G, parsedColor.B);
+            }
+            catch
+            {
+                return null;
+            }
+        }
+
         private static string ConvertSingleDigit(string singleDigit)
         {
             return singleDigit + singleDigit;
+        }
+
+        private static CssExpression GetCssTermForSizeAttribute(string attribute){
+             StringBuilder numberPart= new StringBuilder(), unit = new StringBuilder();
+             foreach(char c in attribute)
+                 if(char.IsDigit(c) && unit.Length == 0)
+                     numberPart.Append(c);
+                 else if(char.IsLetter(c))
+                     unit.Append(c);
+            if(numberPart.Length == 0)
+                return null;
+
+            if(unit.Length == 0)
+                return new CssExpression { Terms = new List<CssTerm> { new CssTerm { Value = attribute, Type = OpenXmlPowerTools.HtmlToWml.CSS.CssTermType.String, Unit = CssUnit.PX } } };
+            else
+            {
+                CssUnit cssunit;
+                if(!Enum.TryParse<CssUnit>(unit.ToString(), true, out cssunit))
+                    cssunit = CssUnit.PX;
+                return new CssExpression { Terms = new List<CssTerm> { new CssTerm { Value = numberPart.ToString(), Type = OpenXmlPowerTools.HtmlToWml.CSS.CssTermType.String, Unit = cssunit } } };
+            }
         }
     }
 }

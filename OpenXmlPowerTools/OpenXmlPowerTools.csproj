@@ -11,6 +11,8 @@
     <AssemblyName>OpenXmlPowerTools</AssemblyName>
     <TargetFrameworkVersion>v4.5</TargetFrameworkVersion>
     <FileAlignment>512</FileAlignment>
+    <SolutionDir Condition="$(SolutionDir) == '' Or $(SolutionDir) == '*Undefined*'">..\..\..\Projects\MyStuff\MS-export-HTML-to-WordExport\</SolutionDir>
+    <RestorePackages>true</RestorePackages>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
     <DebugSymbols>true</DebugSymbols>
@@ -30,16 +32,17 @@
     <WarningLevel>4</WarningLevel>
   </PropertyGroup>
   <ItemGroup>
-    <Reference Include="DocumentFormat.OpenXml">
-      <SpecificVersion>False</SpecificVersion>
-      <HintPath>..\..\Open-Xml-SDK\DocumentFormat.OpenXml\bin\Debug\DocumentFormat.OpenXml.dll</HintPath>
+    <Reference Include="DocumentFormat.OpenXml, Version=2.6.0.0, Culture=neutral, processorArchitecture=MSIL">
+      <HintPath>..\..\..\Projects\MyStuff\MS-export-HTML-to-WordExport\packages\OpenXMLSDK-MOT.2.6.0.0\lib\DocumentFormat.OpenXml.dll</HintPath>
+      <Private>True</Private>
     </Reference>
     <Reference Include="System" />
     <Reference Include="System.Core" />
     <Reference Include="System.Drawing" />
     <Reference Include="System.IO.Compression" />
-    <Reference Include="System.IO.Packaging">
-      <HintPath>..\..\Open-Xml-SDK\DocumentFormat.OpenXml\bin\Debug\System.IO.Packaging.dll</HintPath>
+    <Reference Include="System.IO.Packaging, Version=1.0.0.0, Culture=neutral, processorArchitecture=MSIL">
+      <HintPath>..\..\..\Projects\MyStuff\MS-export-HTML-to-WordExport\packages\OpenXMLSDK-MOT.2.6.0.0\lib\System.IO.Packaging.dll</HintPath>
+      <Private>True</Private>
     </Reference>
     <Reference Include="System.Management.Automation, Version=3.0.0.0, Culture=neutral, PublicKeyToken=31bf3856ad364e35, processorArchitecture=MSIL">
       <SpecificVersion>False</SpecificVersion>
@@ -66,10 +69,13 @@
     <Compile Include="GetListItemText_tr_TR.cs" />
     <Compile Include="GetListItemText_zh_CN.cs" />
     <Compile Include="HtmlToWmlConverter.cs" />
+    <Compile Include="HtmlToWml\HeaderFooterContent.cs" />
+    <Compile Include="HtmlToWml\HtmlToWmlConverterContext.cs" />
     <Compile Include="HtmlToWmlConverterCore.cs" />
     <Compile Include="HtmlToWmlCssApplier.cs" />
     <Compile Include="HtmlToWmlCssParser.cs" />
     <Compile Include="BitmapImageData.cs" />
+    <Compile Include="HtmlToWml\OpenXMLDocumentPartWrapper.cs" />
     <Compile Include="MetricsGetter.cs" />
     <Compile Include="SmlCellFormatter.cs" />
     <Compile Include="SmlDataRetriever.cs" />
@@ -102,7 +108,17 @@
   <ItemGroup>
     <Content Include="OpenXmlPowerTools.dll-Help.xml" />
   </ItemGroup>
+  <ItemGroup>
+    <None Include="packages.config" />
+  </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
+  <Import Project="$(SolutionDir)\.nuget\NuGet.targets" Condition="Exists('$(SolutionDir)\.nuget\NuGet.targets')" />
+  <Target Name="EnsureNuGetPackageBuildImports" BeforeTargets="PrepareForBuild">
+    <PropertyGroup>
+      <ErrorText>This project references NuGet package(s) that are missing on this computer. Enable NuGet Package Restore to download them.  For more information, see http://go.microsoft.com/fwlink/?LinkID=322105. The missing file is {0}.</ErrorText>
+    </PropertyGroup>
+    <Error Condition="!Exists('$(SolutionDir)\.nuget\NuGet.targets')" Text="$([System.String]::Format('$(ErrorText)', '$(SolutionDir)\.nuget\NuGet.targets'))" />
+  </Target>
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 
        Other similar extension points exist, see Microsoft.Common.targets.
   <Target Name="BeforeBuild">

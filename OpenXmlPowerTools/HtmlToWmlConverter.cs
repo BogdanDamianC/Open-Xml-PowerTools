@@ -79,6 +79,16 @@ namespace OpenXmlPowerTools
             return HtmlToWmlConverterCore.ConvertHtmlToWml(defaultCss, authorCss, userCss, xhtml, settings, emptyDocument, annotatedHtmlDumpFileName);
         }
 
+        public static WmlDocument ConvertHtmlToWml(string defaultCss,string authorCss, string userCss,
+                   XElement bodyxhtml,
+                   IEnumerable<HeaderFooterContent> headerFooterContent,
+            HtmlToWmlConverterSettings settings,
+            WmlDocument emptyDocument,
+            string annotatedHtmlDumpFileName)
+        {
+            return HtmlToWmlConverterCore.ConvertHtmlToWml(defaultCss, authorCss, userCss, bodyxhtml, headerFooterContent, settings, emptyDocument, annotatedHtmlDumpFileName);
+        }
+
         private static string s_Blank_wml_base64 = @"UEsDBBQABgAIAAAAIQAJJIeCgQEAAI4FAAATAAgCW0NvbnRlbnRfVHlwZXNdLnhtbCCiBAIooAAC
 AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
 AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
