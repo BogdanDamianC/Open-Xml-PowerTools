@@ -55,6 +55,8 @@ using System.Text.RegularExpressions;
 using Word = Microsoft.Office.Interop.Word;
 #endif
 
+#if !ELIDE_XUNIT_TESTS
+
 namespace OxPt
 {
     public class HwTests
@@ -336,7 +338,8 @@ namespace OxPt
             var destDocxFi = new FileInfo(Path.Combine(TestUtil.TempDir.FullName, sourceHtmlFi.Name.Replace(".html", "-3-ConvertedByHtmlToWml.docx")));
             var annotatedHtmlFi = new FileInfo(Path.Combine(TestUtil.TempDir.FullName, sourceHtmlFi.Name.Replace(".html", "-4-Annotated.txt")));
 
-            File.Copy(sourceHtmlFi.FullName, sourceCopiedToDestHtmlFi.FullName);
+            if (!sourceCopiedToDestHtmlFi.Exists)
+                File.Copy(sourceHtmlFi.FullName, sourceCopiedToDestHtmlFi.FullName);
             XElement html = HtmlToWmlReadAsXElement.ReadAsXElement(sourceCopiedToDestHtmlFi);
 
             string htmlString = html.ToString();
@@ -548,3 +551,5 @@ BDO[DIR=""rtl""] { direction: rtl; unicode-bidi: bidi-override }
         static string userCss = @"";
     }
 }
+
+#endif
