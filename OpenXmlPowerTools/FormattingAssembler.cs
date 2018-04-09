@@ -318,8 +318,17 @@ namespace OpenXmlPowerTools
                             }
                         }
 
+                        var paragraphLevel = ListItemRetriever.GetParagraphLevel(element);
+                        ListItemRetriever.LevelNumbers levelNums = element.Annotation<ListItemRetriever.LevelNumbers>();
+                        string levelNumsString = levelNums
+                            .LevelNumbersArray
+                            .Take(paragraphLevel + 1)
+                            .Select(i => i.ToString() + ".")
+                            .StringConcatenate()
+                            .TrimEnd('.');
+
                         var listItemRun = new XElement(W.r,
-                            new XAttribute(PtOpenXml.ListItemRun, "1"),
+                            new XAttribute(PtOpenXml.ListItemRun, levelNumsString),
                             element.Attribute(PtOpenXml.FontName),
                             element.Attribute(PtOpenXml.LanguageType),
                             listItemRunProps,
@@ -393,12 +402,13 @@ namespace OpenXmlPowerTools
                         XElement newPara = new XElement(W.p,
                             element.Attribute(PtOpenXml.FontName),
                             element.Attribute(PtOpenXml.LanguageType),
+                            element.Attribute(PtOpenXml.Unid),
                             new XAttribute(PtOpenXml.AbstractNumId, abstractNumId),
                             newParaProps,
                             listItemRun,
                             suffix != null ?
                                 new XElement(W.r,
-                                    new XAttribute(PtOpenXml.ListItemRun, "2"),
+                                    new XAttribute(PtOpenXml.ListItemRun, levelNumsString),
                                     listItemRunProps,
                                     suffix) : null,
                             element.Elements().Where(e => e.Name != W.pPr).Select(n => NormalizeListItemsTransform(fai, wDoc, n, settings)));
@@ -443,7 +453,8 @@ namespace OpenXmlPowerTools
             PtOpenXml.AbstractNumId,
             PtOpenXml.StyleName,
             PtOpenXml.LanguageType,
-            PtOpenXml.ListItemRun
+            PtOpenXml.ListItemRun,
+            PtOpenXml.Unid,
         };
 
         public static void NormalizePropsForPart(XDocument pxd, FormattingAssemblerSettings settings)

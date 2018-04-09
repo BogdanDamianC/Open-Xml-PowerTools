@@ -103,6 +103,8 @@ namespace OxPt
         [InlineData("HC050-Shaded-Text-01.docx")]
         [InlineData("HC051-Shaded-Text-02.docx")]
         [InlineData("HC060-Image-with-Hyperlink.docx")]
+        [InlineData("HC061-Hyperlink-in-Field.docx")]
+        
         public void HC001(string name)
         {
             FileInfo sourceDocx = new FileInfo(Path.Combine(TestUtil.SourceDir.FullName, name));
@@ -137,7 +139,7 @@ namespace OxPt
             ConvertToHtmlNoCssClasses(sourceDocx, oxPtConvertedDestHtml);
         }
 
-        public static void CopyFormattingAssembledDocx(FileInfo source, FileInfo dest)
+        private static void CopyFormattingAssembledDocx(FileInfo source, FileInfo dest)
         {
             var ba = File.ReadAllBytes(source.FullName);
             using (MemoryStream ms = new MemoryStream())
@@ -186,7 +188,7 @@ namespace OxPt
             }
         }
 
-        public static void ConvertToHtml(FileInfo sourceDocx, FileInfo destFileName)
+        private static void ConvertToHtml(FileInfo sourceDocx, FileInfo destFileName)
         {
             byte[] byteArray = File.ReadAllBytes(sourceDocx.FullName);
             using (MemoryStream memoryStream = new MemoryStream())
@@ -280,7 +282,7 @@ namespace OxPt
             }
         }
 
-        public static void ConvertToHtmlNoCssClasses(FileInfo sourceDocx, FileInfo destFileName)
+        private static void ConvertToHtmlNoCssClasses(FileInfo sourceDocx, FileInfo destFileName)
         {
             byte[] byteArray = File.ReadAllBytes(sourceDocx.FullName);
             using (MemoryStream memoryStream = new MemoryStream())
