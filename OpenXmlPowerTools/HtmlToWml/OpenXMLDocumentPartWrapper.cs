@@ -1,15 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Drawing;
-using System.Drawing.Imaging;
-using System.IO;
-using System.Linq;
-using System.Text;
-using System.Xml.Linq;
 using DocumentFormat.OpenXml.Packaging;
-using OpenXmlPowerTools;
-using OpenXmlPowerTools.HtmlToWml;
-using OpenXmlPowerTools.HtmlToWml.CSS;
 
 namespace OpenXmlPowerTools.HtmlToWml
 {
@@ -23,10 +14,48 @@ namespace OpenXmlPowerTools.HtmlToWml
         HyperlinkRelationship AddHyperlinkRelationship(Uri hyperlinkUri, bool isExternal, string id);
     }
 
-    internal class OpenXMLDocumentPartWrapper : IOpenXMLDocumentPartWrapper
+    internal class OpenXMLDocumentPartWrapperForHeaderPart : IOpenXMLDocumentPartWrapper
     {
-        private dynamic documentPart;
-        public OpenXMLDocumentPartWrapper(object documentPart)
+        private HeaderPart documentPart;
+        public OpenXMLDocumentPartWrapperForHeaderPart(HeaderPart documentPart)
+        {
+            this.documentPart = documentPart;
+        }
+
+        public IEnumerable<ImagePart> ImageParts { get { return this.documentPart.ImageParts; } }
+        public ImagePart AddImagePart(ImagePartType partType, string id)
+        {
+            return this.documentPart.AddImagePart(partType, id);
+        }
+        public HyperlinkRelationship AddHyperlinkRelationship(Uri hyperlinkUri, bool isExternal, string id)
+        {
+            return this.documentPart.AddHyperlinkRelationship(hyperlinkUri, isExternal, id);
+        }
+    }
+
+    internal class OpenXMLDocumentPartWrapperForMainDocumentPart : IOpenXMLDocumentPartWrapper
+    {
+        private MainDocumentPart documentPart;
+        public OpenXMLDocumentPartWrapperForMainDocumentPart(MainDocumentPart documentPart)
+        {
+            this.documentPart = documentPart;
+        }
+
+        public IEnumerable<ImagePart> ImageParts { get { return this.documentPart.ImageParts; } }
+        public ImagePart AddImagePart(ImagePartType partType, string id)
+        {
+            return this.documentPart.AddImagePart(partType, id);
+        }
+        public HyperlinkRelationship AddHyperlinkRelationship(Uri hyperlinkUri, bool isExternal, string id)
+        {
+            return this.documentPart.AddHyperlinkRelationship(hyperlinkUri, isExternal, id);
+        }
+    }
+
+    internal class OpenXMLDocumentPartWrapperForFooterPart : IOpenXMLDocumentPartWrapper
+    {
+        private FooterPart documentPart;
+        public OpenXMLDocumentPartWrapperForFooterPart(FooterPart documentPart)
         {
             this.documentPart = documentPart;
         }

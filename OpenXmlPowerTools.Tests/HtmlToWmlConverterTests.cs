@@ -18,19 +18,13 @@ Email: eric@ericwhite.com
 
 using System;
 using System.Collections.Generic;
-using System.Drawing;
-using System.Drawing.Imaging;
 using System.IO;
 using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-using System.Xml;
 using System.Xml.Linq;
 using DocumentFormat.OpenXml.Packaging;
 using DocumentFormat.OpenXml.Validation;
 using OpenXmlPowerTools;
 using Xunit;
-using System.Text.RegularExpressions;
 
 /*******************************************************************************************
  * HtmlToWmlConverter expects the HTML to be passed as an XElement, i.e. as XML.  While the HTML test files that
@@ -307,12 +301,15 @@ namespace OxPt
             ConvertHtmlToWml(name, null, null);
         }
 
+        [Theory]
         [InlineData("T1840_headerandfooter.html", "THeader.html", "TFooter.html")]
         [InlineData("T1850_headerandfooter.html", "THeader.html", "TFooter.html")]
         [InlineData("T1851_P_max-width_headerandfooter.html", "THeader.html", "TFooter.html")]
         [InlineData("T1852_P_max-width-percentages_headerandfooter.html", "THeader.html", "TFooter.html")]
         [InlineData("T1853_var_tag_headerandfooter.html", "THeader.html", "TFooter.html")]
         [InlineData("T1854_image-with-size-attributes.html", "THeader.html", "TFooter.html")]
+        [InlineData("T1857_table_size_test.html", "THeader.html", "TFooter.html")]
+        [InlineData("T1858_Justified_table.html", "THeader.html", "TFooter.html")]
         public void HW001WithHeaderAndFooter(string name, string header, string footer)
         {
             ConvertHtmlToWml(name, header, footer);
