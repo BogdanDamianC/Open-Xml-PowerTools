@@ -1793,12 +1793,13 @@ namespace OpenXmlPowerTools.HtmlToWml.CSS
 
     public class CssParser
     {
-        public IErrorHandler ErrorHandler { get; private set; }
+        private readonly IErrorHandler m_errorHandler;
+        public IErrorHandler ErrorHandler { get { return m_errorHandler; } }
         private CssDocument m_doc;
 
         public CssParser(IErrorHandler errorHandler)
         {
-            this.ErrorHandler = errorHandler;
+            this.m_errorHandler = errorHandler;
         }
 
         public CssDocument ParseText(string content)
